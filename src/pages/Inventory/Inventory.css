@@ -1,0 +1,10 @@
+/* Styles for Inventory page */
+/* Common table/list styles are now in src/styles/tables.css */
+
+.inventory-page {
+    /* Specific inventory page styles if needed */
+}
+
+.inventory-card {
+    /* Specific inventory card styles if needed */
+}
