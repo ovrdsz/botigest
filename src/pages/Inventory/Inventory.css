@@ -8,3 +8,7 @@
 .inventory-card {
     /* Specific inventory card styles if needed */
 }
+
+.product-modal {
+    max-width: 800px !important;
+}

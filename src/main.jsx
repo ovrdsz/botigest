@@ -5,7 +5,5 @@ import "./styles/theme.css";
 import "./styles/tables.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <App />
 );

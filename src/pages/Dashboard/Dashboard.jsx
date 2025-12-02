@@ -1,51 +1,117 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, ShoppingBag, AlertTriangle, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import Card from '../../components/ui/Card';
+import { SaleRepository } from '../../repositories/saleRepository';
+import { ProductRepository } from '../../repositories/productRepository';
 import './Dashboard.css';
 
 const Dashboard = () => {
-    // Datos de prueba
-    const stats = [
+    const [stats, setStats] = useState([
         {
             title: 'Ventas del Día',
-            value: '$154.900',
-            trend: '+12.5%',
+            value: '$0',
+            trend: '0%',
             isPositive: true,
             icon: DollarSign,
-            color: 'var(--success)'
+            variant: 'success'
         },
         {
             title: 'Transacciones',
-            value: '45',
-            trend: '+5.2%',
+            value: '0',
+            trend: '0%',
             isPositive: true,
             icon: ShoppingBag,
-            color: 'var(--primary)'
+            variant: 'primary'
         },
         {
             title: 'Ticket Promedio',
-            value: '$3.442',
-            trend: '-2.1%',
-            isPositive: false,
+            value: '$0',
+            trend: '0%',
+            isPositive: true,
             icon: TrendingUp,
-            color: 'var(--warning)'
+            variant: 'warning'
         },
         {
             title: 'Alertas de Stock',
-            value: '3',
+            value: '0',
             trend: 'Items',
-            isPositive: false, // Contexto Neutral/Negativo
+            isPositive: false,
             icon: AlertTriangle,
-            color: 'var(--danger)'
+            variant: 'danger'
         }
-    ];
+    ]);
 
-    const recentSales = [
-        { id: 1, time: '10:42', total: '$4.500', items: 2, method: 'Efectivo' },
-        { id: 2, time: '10:38', total: '$12.900', items: 5, method: 'Tarjeta' },
-        { id: 3, time: '10:15', total: '$2.100', items: 1, method: 'Efectivo' },
-        { id: 4, time: '09:55', total: '$8.400', items: 3, method: 'Tarjeta' },
-    ];
+    const [recentSales, setRecentSales] = useState([]);
+    const [hourlySales, setHourlySales] = useState([]);
+
+    useEffect(() => {
+        loadDashboardData();
+    }, []);
+
+    const loadDashboardData = async () => {
+        try {
+            const [dailyStats, lowStockCount, sales, salesHourly] = await Promise.all([
+                SaleRepository.getDailyStats(),
+                ProductRepository.getLowStock(10),
+                SaleRepository.getRecentSales(5),
+                SaleRepository.getHourlySales()
+            ]);
+
+            // Update Hourly Sales for Chart (Simple mapping for now)
+            // In a real chart library we would map this to the chart data structure
+            // setHourlySales(hourlyData); 
+
+            setStats([
+                {
+                    title: 'Ventas del Día',
+                    value: `$${dailyStats.total.toLocaleString()}`,
+                    trend: `${dailyStats.trend > 0 ? '+' : ''}${dailyStats.trend.toFixed(1)}%`,
+                    isPositive: dailyStats.trend >= 0,
+                    icon: DollarSign,
+                    variant: 'success'
+                },
+                {
+                    title: 'Transacciones',
+                    value: dailyStats.count.toString(),
+                    trend: `${dailyStats.countTrend > 0 ? '+' : ''}${dailyStats.countTrend.toFixed(1)}%`,
+                    isPositive: dailyStats.countTrend >= 0,
+                    icon: ShoppingBag,
+                    variant: 'primary'
+                },
+                {
+                    title: 'Ticket Promedio',
+                    value: `$${dailyStats.average.toLocaleString()}`,
+                    trend: `${dailyStats.averageTrend > 0 ? '+' : ''}${dailyStats.averageTrend.toFixed(1)}%`,
+                    isPositive: dailyStats.averageTrend >= 0,
+                    icon: TrendingUp,
+                    variant: 'warning'
+                },
+                {
+                    title: 'Alertas de Stock',
+                    value: lowStockCount.toString(),
+                    trend: 'Items',
+                    isPositive: false,
+                    icon: AlertTriangle,
+                    variant: 'danger'
+                }
+            ]);
+
+            setHourlySales(salesHourly);
+
+            setRecentSales(sales.map(s => ({
+                id: s.id,
+                time: new Date(s.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                total: `$${s.total.toLocaleString()}`,
+                items: s.items,
+                method: s.payment_method === 'cash' ? 'Efectivo' : 'Tarjeta'
+            })));
+
+        } catch (error) {
+            console.error("Error loading dashboard data:", error);
+        }
+    };
+
+    const maxHourlySale = Math.max(...hourlySales.map(h => h.total), 1);
 
     return (
         <div className="dashboard-container">
@@ -60,11 +126,11 @@ const Dashboard = () => {
             <div className="stats-grid">
                 {stats.map((stat, index) => (
                     <Card key={index} className="stat-card">
-                        <div className="stat-icon-wrapper" style={{ backgroundColor: `${stat.color}20`, color: stat.color }}>
+                        <div className={`stat-icon-wrapper ${stat.variant}`}>
                             <stat.icon size={24} />
                         </div>
                         <div className="stat-content">
-                            <p className="stat-title">{stat.title}</p>
+                            <p className="stat-title">{stat.title === 'Ticket Promedio' ? 'Boleta Promedio' : stat.title}</p>
                             <h3 className="stat-value">{stat.value}</h3>
                             <div className="stat-trend">
                                 {stat.isPositive ? (
@@ -83,29 +149,32 @@ const Dashboard = () => {
             </div>
 
             <div className="dashboard-content">
-                {/* Sección Principal de Gráfico (Marcador de posición) */}
+                {/* Sección Principal de Gráfico */}
                 <Card className="chart-section">
                     <div className="section-header">
-                        <h2>Ventas por Hora</h2>
-                        <select className="chart-filter">
-                            <option>Hoy</option>
-                            <option>Esta Semana</option>
-                        </select>
+                        <h2>Ventas por Hora (Hoy)</h2>
                     </div>
-                    <div className="chart-placeholder">
-                        {/* Representación visual de un gráfico */}
-                        <div className="bar" style={{ height: '40%' }}></div>
-                        <div className="bar" style={{ height: '65%' }}></div>
-                        <div className="bar" style={{ height: '50%' }}></div>
-                        <div className="bar" style={{ height: '85%' }}></div>
-                        <div className="bar" style={{ height: '60%' }}></div>
-                        <div className="bar" style={{ height: '75%' }}></div>
-                        <div className="bar" style={{ height: '45%' }}></div>
-                        <div className="bar" style={{ height: '90%' }}></div>
-                        <div className="bar active" style={{ height: '70%' }}></div>
-                        <div className="bar" style={{ height: '55%' }}></div>
-                        <div className="bar" style={{ height: '40%' }}></div>
-                        <div className="bar" style={{ height: '30%' }}></div>
+                    <div className="list-chart-container" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '10px' }}>
+                        {hourlySales.length > 0 ? (
+                            <div className="list-chart">
+                                {hourlySales.map((item, index) => (
+                                    <div key={index} className="list-chart-item">
+                                        <div className="list-chart-info">
+                                            <span className="list-chart-label">{item.hour}:00</span>
+                                            <span className="list-chart-value">${item.total.toLocaleString()}</span>
+                                        </div>
+                                        <div className="progress-bg">
+                                            <div
+                                                className="progress-fill"
+                                                style={{ width: `${(item.total / maxHourlySale) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-muted text-center py-8">No hay ventas registradas hoy.</p>
+                        )}
                     </div>
                 </Card>
 
@@ -116,20 +185,24 @@ const Dashboard = () => {
                         <button className="view-all-btn">Ver todo</button>
                     </div>
                     <div className="activity-list">
-                        {recentSales.map(sale => (
-                            <div key={sale.id} className="activity-item">
-                                <div className="activity-icon">
-                                    <ShoppingBag size={18} />
+                        {recentSales.length > 0 ? (
+                            recentSales.map(sale => (
+                                <div key={sale.id} className="activity-item">
+                                    <div className="activity-icon">
+                                        <ShoppingBag size={18} />
+                                    </div>
+                                    <div className="activity-details">
+                                        <p className="activity-title">Venta #{sale.id}</p>
+                                        <p className="activity-subtitle">{sale.items} artículos • {sale.method}</p>
+                                    </div>
+                                    <div className="activity-amount">
+                                        {sale.total}
+                                    </div>
                                 </div>
-                                <div className="activity-details">
-                                    <p className="activity-title">Venta #{1000 + sale.id}</p>
-                                    <p className="activity-subtitle">{sale.items} artículos • {sale.method}</p>
-                                </div>
-                                <div className="activity-amount">
-                                    {sale.total}
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <p className="text-muted text-center p-4">No hay ventas recientes</p>
+                        )}
                     </div>
                 </Card>
             </div>

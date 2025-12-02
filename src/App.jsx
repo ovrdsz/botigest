@@ -5,29 +5,109 @@ import Inventory from './pages/Inventory/Inventory';
 import POS from './pages/POS/POS';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Customers from './pages/Customers/Customers';
+import Categories from './pages/Categories/Categories';
 import Reports from './pages/Reports/Reports';
 import Settings from './pages/Settings/Settings';
 import MainLayout from './layouts/MainLayout';
+import { AuthProvider } from './context/AuthContext';
+import { CashProvider } from './context/CashContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
+import { useEffect } from 'react';
+import { initDB } from './services/db';
 
-        {/* Rutas Protegidas */}
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+import { useAuth } from './context/AuthContext';
+
+const AdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/pos" replace />;
+  }
+  return children;
+};
+
+function App() {
+  const [isInitialized, setIsInitialized] = React.useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      // Check for pending restore
+      try {
+        const { appDataDir, join } = await import('@tauri-apps/api/path');
+        const { exists, rename, remove } = await import('@tauri-apps/plugin-fs');
+
+        const roamingDir = await appDataDir();
+        const pendingPath = await join(roamingDir, 'botigest.restore.db');
+        const dbPath = await join(roamingDir, 'botigest.db');
+        const walPath = await join(roamingDir, 'botigest.db-wal');
+        const shmPath = await join(roamingDir, 'botigest.db-shm');
+
+        if (await exists(pendingPath)) {
+          console.log('Found pending restore file. Applying...');
+
+          // Clean up WAL/SHM to prevent corruption
+          try { await remove(walPath); } catch (e) { /* ignore */ }
+          try { await remove(shmPath); } catch (e) { /* ignore */ }
+
+          // Swap files
+          // We can try to rename current to .old just in case
+          const backupPath = await join(roamingDir, 'botigest.db.old');
+          try {
+            if (await exists(backupPath)) await remove(backupPath);
+            if (await exists(dbPath)) await rename(dbPath, backupPath);
+          } catch (e) {
+            console.error('Failed to backup current DB during restore:', e);
+          }
+
+          // Move pending to actual DB
+          await rename(pendingPath, dbPath);
+          console.log('Restore applied successfully.');
+        }
+      } catch (error) {
+        console.error('Error applying restore:', error);
+      }
+
+      // Initialize DB
+      await initDB();
+      setIsInitialized(true);
+    };
+
+    init();
+  }, []);
+
+  if (!isInitialized) {
+    return <div className="flex items-center justify-center h-screen bg-slate-900 text-white">Iniciando sistema...</div>;
+  }
+
+  return (
+    <AuthProvider>
+      <CashProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Login />} />
+
+            {/* Rutas Protegidas */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                {/* Rutas comunes */}
+                <Route path="/pos" element={<POS />} />
+
+                {/* Rutas solo Admin */}
+                <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+                <Route path="/inventory" element={<AdminRoute><Inventory /></AdminRoute>} />
+                <Route path="/customers" element={<AdminRoute><Customers /></AdminRoute>} />
+                <Route path="/categories" element={<AdminRoute><Categories /></AdminRoute>} />
+                <Route path="/reports" element={<AdminRoute><Reports /></AdminRoute>} />
+                <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+
+                <Route path="*" element={<Navigate to="/pos" replace />} />
+              </Route>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </CashProvider>
+    </AuthProvider>
   );
 }
 

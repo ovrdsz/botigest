@@ -1,0 +1,146 @@
+/* Ticket styles for printing */
+.ticket-print-container {
+    display: none;
+    /* Hidden by default on screen */
+    width: 80mm;
+    padding: 2mm;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    color: black;
+    background: white;
+    line-height: 1.2;
+}
+
+@media print {
+
+    /* Hide everything else */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show only the ticket */
+    .ticket-print-container,
+    .ticket-print-container * {
+        visibility: visible;
+    }
+
+    .ticket-print-container {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+        /* Force width */
+        margin: 0;
+        padding: 0;
+        background: white;
+    }
+
+    /* Reset page margins */
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+}
+
+.ticket-header {
+    text-align: center;
+    margin-bottom: 10px;
+    display: block !important;
+    /* Force block layout */
+    width: 100%;
+}
+
+.business-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0 0 5px 0;
+    display: block !important;
+}
+
+.ticket-header p {
+    margin: 2px 0;
+    display: block !important;
+    white-space: normal;
+    /* Allow wrapping */
+}
+
+.ticket-divider {
+    text-align: center;
+    margin: 5px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    display: block !important;
+}
+
+.ticket-items table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    /* Fix column widths */
+}
+
+.ticket-items th {
+    text-align: left;
+    border-bottom: 1px dashed black;
+    padding-bottom: 2px;
+    font-size: 11px;
+}
+
+.ticket-items td {
+    padding: 2px 0;
+    vertical-align: top;
+    font-size: 11px;
+    word-wrap: break-word;
+    /* Ensure long words break */
+}
+
+.col-qty {
+    width: 15%;
+    text-align: center;
+}
+
+.col-desc {
+    width: 60%;
+}
+
+.col-price {
+    width: 25%;
+    text-align: right;
+}
+
+.item-unit-price {
+    font-size: 10px;
+    color: #333;
+    display: block;
+}
+
+.ticket-totals {
+    margin-top: 5px;
+    border-top: 1px dashed black;
+    padding-top: 5px;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 2px 0;
+}
+
+.total-row.large {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.ticket-footer {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 10px;
+    display: block !important;
+}
+
+.ticket-footer p {
+    margin: 2px 0;
+    display: block !important;
+}

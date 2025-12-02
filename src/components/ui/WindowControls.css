@@ -1,0 +1,35 @@
+.window-controls {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    gap: 8px;
+}
+
+.window-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    /* slate-400 */
+    padding: 8px;
+    border-radius: 9999px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.window-btn:hover {
+    color: white;
+    background-color: rgba(30, 41, 59, 0.5);
+    /* slate-800/50 */
+}
+
+.window-btn.close-btn:hover {
+    background-color: rgba(239, 68, 68, 0.8);
+    /* red-500/80 */
+}

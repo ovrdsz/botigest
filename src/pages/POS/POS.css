@@ -13,7 +13,6 @@
     flex-direction: column;
     gap: 1.5rem;
     min-width: 0;
-    /* Prevenir desbordamiento flex */
 }
 
 .pos-header {
@@ -22,11 +21,16 @@
     padding: 1rem;
     border-radius: var(--radius-lg);
     backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
 }
 
 .search-bar-container {
     position: relative;
     width: 100%;
+    flex: 1;
 }
 
 .pos-search-icon {
@@ -60,8 +64,7 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 1rem;
     overflow-y: auto;
-    padding-right: 0.5rem;
-    padding-bottom: 1rem;
+    padding: 1rem;
 }
 
 .product-card {
@@ -311,4 +314,113 @@
 .products-grid::-webkit-scrollbar-thumb:hover,
 .ticket-items::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* Customer Section */
+.customer-section {
+    padding: 1rem;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.selected-customer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+}
+
+.customer-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.remove-customer-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-customer-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--danger);
+}
+
+.customer-selector {
+    position: relative;
+}
+
+.select-customer-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.select-customer-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.customer-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    margin-top: 0.5rem;
+    z-index: 50;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.customer-search-input {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: none;
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    outline: none;
+}
+
+.customer-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.customer-option {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+}
+
+.customer-option:last-child {
+    border-bottom: none;
+}
+
+.customer-option:hover {
+    background: rgba(59, 130, 246, 0.1);
 }

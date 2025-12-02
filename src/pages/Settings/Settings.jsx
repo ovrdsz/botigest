@@ -1,12 +1,207 @@
 import React, { useState } from 'react';
-import { Store, Printer, Users, Database, Save } from 'lucide-react';
+import { Store, Printer, Users, Database, Save, X, Edit, Trash2 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import './Settings.css';
 
+import { SettingsRepository } from '../../repositories/settingsRepository';
+import { UserRepository } from '../../repositories/userRepository';
+import { executeQuery } from '../../services/db';
+
+import { save, open, ask } from '@tauri-apps/plugin-dialog';
+import { copyFile, readFile, writeFile } from '@tauri-apps/plugin-fs';
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
+import { relaunch, exit } from '@tauri-apps/plugin-process';
+
 const Settings = () => {
     const [activeTab, setActiveTab] = useState('general');
+    const [settings, setSettings] = useState({
+        businessName: '',
+        businessRut: '',
+        businessAddress: '',
+        businessPhone: '',
+        businessEmail: '',
+        currency: 'CLP ($)',
+        taxRate: '19'
+    });
+
+    // User Management State
+    const [users, setUsers] = useState([]);
+    const [showUserModal, setShowUserModal] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [userForm, setUserForm] = useState({ username: '', password: '', role: 'user' });
+
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        loadSettings();
+    }, []);
+
+    const loadSettings = async () => {
+        try {
+            const loadedSettings = await SettingsRepository.getAll();
+            if (Object.keys(loadedSettings).length > 0) {
+                setSettings(prev => ({ ...prev, ...loadedSettings }));
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            await SettingsRepository.setMany(settings);
+            alert('Configuración guardada correctamente');
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            alert('Error al guardar la configuración');
+        }
+    };
+
+    const handleChange = (key, value) => {
+        setSettings(prev => ({ ...prev, [key]: value }));
+    };
+
+    // User Management Functions
+    const loadUsers = async () => {
+        try {
+            const usersList = await UserRepository.getAll();
+            setUsers(usersList);
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    };
+
+    const handleSaveUser = async (e) => {
+        e.preventDefault();
+        try {
+            if (editingUser) {
+                // Update
+                if (!userForm.username) return alert('El nombre de usuario es obligatorio');
+                await UserRepository.update(editingUser.id, userForm);
+                alert('Usuario actualizado correctamente');
+            } else {
+                // Create
+                if (!userForm.username || !userForm.password) return alert('Usuario y contraseña son obligatorios');
+                await UserRepository.create(userForm);
+                alert('Usuario creado correctamente');
+            }
+            setShowUserModal(false);
+            loadUsers();
+        } catch (error) {
+            console.error('Error saving user:', error);
+            alert('Error al guardar usuario: ' + error.message);
+        }
+    };
+
+    const handleDeleteUser = async (id) => {
+        if (window.confirm('¿Estás seguro de eliminar este usuario?')) {
+            try {
+                await UserRepository.delete(id);
+                loadUsers();
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Error al eliminar usuario');
+            }
+        }
+    };
+
+    const openUserModal = (user = null) => {
+        if (user) {
+            setEditingUser(user);
+            setUserForm({ username: user.username, password: '', role: user.role });
+        } else {
+            setEditingUser(null);
+            setUserForm({ username: '', password: '', role: 'user' });
+        }
+        setShowUserModal(true);
+    };
+
+    // Backup and Restore Functions
+    const handleBackup = async () => {
+        try {
+            // Checkpoint WAL to ensure all data is in the main DB file
+            try {
+                await executeQuery('PRAGMA wal_checkpoint(TRUNCATE);');
+            } catch (e) {
+                console.error('Error checkpointing WAL:', e);
+            }
+
+            const { appDataDir } = await import('@tauri-apps/api/path');
+            const roamingDir = await appDataDir();
+
+            // Based on logs, DB is in Roaming
+            const dbPath = await join(roamingDir, 'botigest.db');
+
+            const filePath = await save({
+                filters: [{
+                    name: 'SQLite Database',
+                    extensions: ['db', 'sqlite']
+                }],
+                defaultPath: 'botigest_backup.db'
+            });
+
+            if (!filePath) return;
+
+            // Read the DB file as binary
+            const dbContent = await readFile(dbPath);
+            // Write to the selected location
+            await writeFile(filePath, dbContent);
+
+            alert('Respaldo creado exitosamente.');
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            alert('Error al crear el respaldo: ' + error.message);
+        }
+    };
+
+    const handleRestore = async () => {
+        try {
+            const confirmed = await ask('Restaurar una copia de seguridad SOBRESCRIBIRÁ todos los datos actuales. Esta acción no se puede deshacer. ¿Deseas continuar?', {
+                title: 'Advertencia de Restauración',
+                kind: 'warning'
+            });
+
+            if (!confirmed) return;
+
+            const filePath = await open({
+                multiple: false,
+                filters: [{
+                    name: 'SQLite Database',
+                    extensions: ['db', 'sqlite']
+                }]
+            });
+
+            if (!filePath) return;
+
+            alert('Preparando restauración...');
+
+            const { appDataDir } = await import('@tauri-apps/api/path');
+            const { writeFile, readFile } = await import('@tauri-apps/plugin-fs');
+            const roamingDir = await appDataDir();
+
+            // Write to a temporary "pending restore" file
+            const pendingPath = await join(roamingDir, 'botigest.restore.db');
+
+            const backupContent = await readFile(filePath);
+            await writeFile(pendingPath, backupContent);
+
+            alert('Restauración preparada. La aplicación se cerrará ahora.\n\nPOR FAVOR, VUELVE A ABRIR LA APLICACIÓN MANUALMENTE para aplicar los cambios.');
+            await exit(0);
+        } catch (error) {
+            console.error('Error restoring backup:', error);
+            alert('Error al preparar la restauración: ' + error.message);
+        }
+    };
+
+    React.useEffect(() => {
+        if (activeTab === 'users') {
+            loadUsers();
+        }
+    }, [activeTab]);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -16,18 +211,51 @@ const Settings = () => {
                         <div className="form-section">
                             <h3>Información del Negocio</h3>
                             <div className="form-grid">
-                                <Input label="Nombre del Negocio" defaultValue="Mi Tienda POS" />
-                                <Input label="RUT / ID Fiscal" defaultValue="76.123.456-K" />
-                                <Input label="Dirección" defaultValue="Av. Principal 123" />
-                                <Input label="Teléfono" defaultValue="+56 9 1234 5678" />
-                                <Input label="Email de Contacto" defaultValue="contacto@mitienda.cl" />
+                                <Input
+                                    label="Nombre del Negocio"
+                                    value={settings.businessName}
+                                    onChange={(e) => handleChange('businessName', e.target.value)}
+                                    placeholder="Mi Tienda POS"
+                                />
+                                <Input
+                                    label="RUT / ID Fiscal"
+                                    value={settings.businessRut}
+                                    onChange={(e) => handleChange('businessRut', e.target.value)}
+                                    placeholder="76.123.456-K"
+                                />
+                                <Input
+                                    label="Dirección"
+                                    value={settings.businessAddress}
+                                    onChange={(e) => handleChange('businessAddress', e.target.value)}
+                                    placeholder="Av. Principal 123"
+                                />
+                                <Input
+                                    label="Teléfono"
+                                    value={settings.businessPhone}
+                                    onChange={(e) => handleChange('businessPhone', e.target.value)}
+                                    placeholder="+56 9 1234 5678"
+                                />
+                                <Input
+                                    label="Email de Contacto"
+                                    value={settings.businessEmail}
+                                    onChange={(e) => handleChange('businessEmail', e.target.value)}
+                                    placeholder="contacto@mitienda.cl"
+                                />
                             </div>
                         </div>
                         <div className="form-section">
                             <h3>Configuración Regional</h3>
                             <div className="form-grid">
-                                <Input label="Moneda" defaultValue="CLP ($)" />
-                                <Input label="Impuesto (%)" defaultValue="19" />
+                                <Input
+                                    label="Moneda"
+                                    value={settings.currency}
+                                    onChange={(e) => handleChange('currency', e.target.value)}
+                                />
+                                <Input
+                                    label="Impuesto (%)"
+                                    value={settings.taxRate}
+                                    onChange={(e) => handleChange('taxRate', e.target.value)}
+                                />
                             </div>
                         </div>
                     </div>
@@ -66,31 +294,126 @@ const Settings = () => {
                 return (
                     <div className="settings-form">
                         <div className="form-section">
-                            <h3>Usuarios del Sistema</h3>
+                            <div className="users-header">
+                                <h3>Usuarios del Sistema</h3>
+                                <Button onClick={() => openUserModal()}>
+                                    <Users size={18} style={{ marginRight: '8px' }} />
+                                    Agregar Usuario
+                                </Button>
+                            </div>
+
                             <div className="users-list">
-                                <div className="user-item">
-                                    <div className="user-avatar">A</div>
-                                    <div className="user-details">
-                                        <h4>Administrador</h4>
-                                        <p>admin@botigest.cl</p>
+                                {users.map(user => (
+                                    <div key={user.id} className="user-item">
+                                        <div className="user-avatar">{user.username.charAt(0).toUpperCase()}</div>
+                                        <div className="user-details">
+                                            <h4>{user.username}</h4>
+                                            <p className="text-muted">Registrado: {new Date(user.created_at).toLocaleDateString()}</p>
+                                        </div>
+                                        <span className={`role-badge ${user.role === 'admin' ? 'admin' : ''}`}>
+                                            {user.role === 'admin' ? 'Admin' : 'Vendedor'}
+                                        </span>
+                                        <div className="flex gap-2">
+                                            <Button variant="secondary" size="sm" onClick={() => openUserModal(user)}>
+                                                <Edit size={16} />
+                                            </Button>
+                                            <Button variant="danger" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                                                <Trash2 size={16} />
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <span className="role-badge admin">Admin</span>
-                                    <Button variant="secondary" size="sm">Editar</Button>
-                                </div>
-                                <div className="user-item">
-                                    <div className="user-avatar">V</div>
-                                    <div className="user-details">
-                                        <h4>Vendedor Turno Mañana</h4>
-                                        <p>vendedor1@botigest.cl</p>
+                                ))}
+                                {users.length === 0 && <p className="text-muted text-center py-4">No hay usuarios registrados.</p>}
+                            </div>
+                        </div>
+
+                        {showUserModal && (
+                            <div className="modal-overlay">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h2>{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+                                        <button onClick={() => setShowUserModal(false)}><X size={24} /></button>
                                     </div>
-                                    <span className="role-badge">Vendedor</span>
-                                    <Button variant="secondary" size="sm">Editar</Button>
+                                    <form onSubmit={handleSaveUser}>
+                                        <div className="mb-4">
+                                            <Input
+                                                label="Nombre de Usuario"
+                                                value={userForm.username}
+                                                onChange={e => setUserForm({ ...userForm, username: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="mb-4">
+                                            <Input
+                                                label={editingUser ? "Nueva Contraseña (Opcional)" : "Contraseña"}
+                                                type="password"
+                                                value={userForm.password}
+                                                onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                                                required={!editingUser}
+                                                placeholder={editingUser ? "Dejar en blanco para mantener" : ""}
+                                            />
+                                        </div>
+                                        <div className="mb-6">
+                                            <label className="block text-sm font-medium mb-1 text-muted">Rol</label>
+                                            <select
+                                                className="w-full p-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                                value={userForm.role}
+                                                onChange={e => setUserForm({ ...userForm, role: e.target.value })}
+                                            >
+                                                <option value="user">Vendedor</option>
+                                                <option value="admin">Administrador</option>
+                                            </select>
+                                        </div>
+                                        <div className="modal-actions">
+                                            <Button type="button" variant="secondary" onClick={() => setShowUserModal(false)}>Cancelar</Button>
+                                            <Button type="submit">Guardar</Button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
-                            <Button className="mt-4">
-                                <Users size={18} style={{ marginRight: '8px' }} />
-                                Agregar Usuario
-                            </Button>
+                        )}
+                    </div>
+                );
+            case 'backup':
+                return (
+                    <div className="settings-form">
+                        <div className="form-section">
+                            <h3>Respaldo y Restauración</h3>
+                            <p className="text-muted mb-4">
+                                Gestiona copias de seguridad de tu base de datos para prevenir pérdida de información.
+                            </p>
+
+                            <div className="backup-grid">
+                                <div className="backup-card">
+                                    <div className="backup-icon blue">
+                                        <Save size={32} />
+                                    </div>
+                                    <div className="backup-info">
+                                        <h4>Crear Respaldo</h4>
+                                        <p>
+                                            Descarga una copia completa de tu base de datos actual.
+                                        </p>
+                                        <Button onClick={handleBackup} className="w-full">
+                                            Descargar Copia
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="backup-card danger">
+                                    <div className="backup-icon red">
+                                        <Database size={32} />
+                                    </div>
+                                    <div className="backup-info">
+                                        <h4>Restaurar Copia</h4>
+                                        <p>
+                                            Recupera datos desde un archivo de respaldo. <strong>Sobrescribirá los datos actuales.</strong>
+                                        </p>
+                                        <Button onClick={handleRestore} variant="danger" className="w-full">
+                                            Restaurar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );
@@ -99,6 +422,8 @@ const Settings = () => {
         }
     };
 
+    if (loading) return <div className="p-4">Cargando configuración...</div>;
+
     return (
         <div className="settings-page">
             <div className="page-header">
@@ -106,7 +431,7 @@ const Settings = () => {
                     <h1>Configuración</h1>
                     <p>Administra las preferencias del sistema</p>
                 </div>
-                <Button>
+                <Button onClick={handleSave}>
                     <Save size={18} style={{ marginRight: '8px' }} />
                     Guardar Cambios
                 </Button>

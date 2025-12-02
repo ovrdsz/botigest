@@ -1,18 +1,130 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Download, TrendingUp, DollarSign, CreditCard, ShoppingBag } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import { SaleRepository } from '../../repositories/saleRepository';
 import './Reports.css';
+import { exportToCSV } from '../../utils/exportUtils';
 
 const Reports = () => {
-    // Datos de prueba para transacciones
-    const transactions = [
-        { id: 'TRX-001', date: '2023-11-30 10:42', customer: 'Juan Pérez', total: 4500, method: 'Efectivo', status: 'Completado' },
-        { id: 'TRX-002', date: '2023-11-30 10:38', customer: 'Cliente General', total: 12900, method: 'Tarjeta', status: 'Completado' },
-        { id: 'TRX-003', date: '2023-11-30 10:15', customer: 'María García', total: 2100, method: 'Efectivo', status: 'Completado' },
-        { id: 'TRX-004', date: '2023-11-30 09:55', customer: 'Cliente General', total: 8400, method: 'Tarjeta', status: 'Completado' },
-        { id: 'TRX-005', date: '2023-11-30 09:30', customer: 'Carlos López', total: 15000, method: 'Transferencia', status: 'Completado' },
-    ];
+    const [dateRange, setDateRange] = useState({
+        start: new Date().toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+    });
+
+    const [transactions, setTransactions] = useState([]);
+    const [stats, setStats] = useState({
+        total: 0,
+        count: 0,
+        average: 0,
+        trend: 0
+    });
+    const [paymentMethods, setPaymentMethods] = useState([]);
+    const [categorySales, setCategorySales] = useState([]);
+    const [sellerSales, setSellerSales] = useState([]);
+    const [hourlySales, setHourlySales] = useState([]);
+
+    useEffect(() => {
+        loadReportsData();
+    }, [dateRange]);
+
+    const loadReportsData = async () => {
+        try {
+            const [
+                dailyStats,
+                recentSales,
+                paymentStats,
+                catSales,
+                sellSales,
+                hourSales
+            ] = await Promise.all([
+                SaleRepository.getDailyStats(), // Still gets "today" stats for KPIs
+                SaleRepository.getSalesByDateRange(dateRange.start, dateRange.end),
+                SaleRepository.getSalesByPaymentMethod(), // Global stats
+                SaleRepository.getSalesByCategory(dateRange.start, dateRange.end),
+                SaleRepository.getSalesBySeller(dateRange.start, dateRange.end),
+                SaleRepository.getHourlySales(dateRange.start) // Hourly for start date
+            ]);
+
+            setStats(dailyStats);
+
+            setTransactions(recentSales.map(s => ({
+                id: s.id,
+                date: new Date(s.created_at).toLocaleString(),
+                customer: s.customer || 'Cliente General',
+                total: s.total,
+                method: s.payment_method === 'cash' ? 'Efectivo' : 'Tarjeta',
+                status: s.status === 'completed' ? 'Completado' : s.status
+            })));
+
+            setPaymentMethods(paymentStats);
+            setCategorySales(catSales);
+            setSellerSales(sellSales);
+            setHourlySales(hourSales);
+
+        } catch (error) {
+            console.error("Error loading reports data:", error);
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const data = await SaleRepository.getSalesByDateRange(dateRange.start, dateRange.end);
+            if (!data || data.length === 0) {
+                alert('No hay datos para exportar en el rango de fechas seleccionado.');
+                return;
+            }
+
+            // Format data for export (Spanish headers and values)
+            const formattedData = data.map(item => ({
+                'ID': item.id,
+                'Fecha': new Date(item.created_at).toLocaleString(),
+                'Cliente': item.customer || 'Cliente General',
+                'Vendedor': item.seller || 'Desconocido',
+                'Método Pago': item.payment_method === 'cash' ? 'Efectivo' : 'Tarjeta',
+                'Total': item.total,
+                'Estado': item.status === 'completed' ? 'Completado' : item.status
+            }));
+
+            exportToCSV(formattedData, 'ventas_reporte');
+        } catch (error) {
+            console.error("Error exporting data:", error);
+            alert('Ocurrió un error al exportar los datos.');
+        }
+    };
+
+    const handleDateChange = (e) => {
+        const { name, value } = e.target;
+        setDateRange(prev => ({ ...prev, [name]: value }));
+    };
+
+    // Clean and parse hourly sales data
+    const cleanedHourlySales = hourlySales.map(h => {
+        // Remove any non-numeric characters except dot and minus (if any)
+        // This handles cases like "$250,000" or "250.000" depending on locale
+        // Assuming the DB returns a number or a string representation of a number
+        let val = h.total;
+        if (typeof val === 'string') {
+            // Remove currency symbols and commas (assuming dot is decimal separator or simple integer)
+            // If the format is 1.000,00 (European), this simple replace might be risky, 
+            // but SQLite usually returns standard numbers. 
+            // Let's just try to parse it safely.
+            val = parseFloat(val);
+        }
+        return {
+            ...h,
+            numericTotal: isNaN(val) ? 0 : val
+        };
+    });
+
+    // Calculate max value for charts scaling
+    const maxHourlyTotal = Math.max(...cleanedHourlySales.map(h => h.numericTotal), 1);
+
+    // Calculate angles for donut chart
+    const cashCount = paymentMethods.find(p => p.payment_method === 'cash')?.count || 0;
+    const cardCount = paymentMethods.find(p => p.payment_method === 'card')?.count || 0;
+    const totalCount = cashCount + cardCount || 1; // Avoid division by zero
+    const cashAngle = (cashCount / totalCount) * 360;
 
     return (
         <div className="reports-page">
@@ -22,27 +134,42 @@ const Reports = () => {
                     <p>Análisis de ventas y rendimiento</p>
                 </div>
                 <div className="header-actions">
-                    <Button variant="secondary" className="date-range-btn">
-                        <Calendar size={18} />
-                        <span>Hoy: 30 Nov</span>
-                    </Button>
-                    <Button variant="secondary">
+                    <div className="date-inputs">
+                        <input
+                            type="date"
+                            name="start"
+                            value={dateRange.start}
+                            onChange={handleDateChange}
+                            className="date-input"
+                        />
+                        <span className="date-separator">a</span>
+                        <input
+                            type="date"
+                            name="end"
+                            value={dateRange.end}
+                            onChange={handleDateChange}
+                            className="date-input"
+                        />
+                    </div>
+                    <Button variant="secondary" onClick={handleExport}>
                         <Download size={18} />
                         Exportar
                     </Button>
                 </div>
             </div>
 
-            {/* Tarjetas KPI */}
+            {/* Tarjetas KPI (Siempre muestran HOY para referencia rápida) */}
             <div className="kpi-grid">
                 <Card className="kpi-card">
                     <div className="kpi-icon success">
                         <DollarSign size={24} />
                     </div>
                     <div className="kpi-content">
-                        <p className="kpi-label">Ventas Totales</p>
-                        <h3 className="kpi-value">$154.900</h3>
-                        <p className="kpi-trend positive">+12.5% vs ayer</p>
+                        <p className="kpi-label">Ventas Hoy</p>
+                        <h3 className="kpi-value">${stats.total.toLocaleString()}</h3>
+                        <p className={`kpi-trend ${stats.trend >= 0 ? 'positive' : 'negative'}`}>
+                            {stats.trend > 0 ? '+' : ''}{stats.trend.toFixed(1)}% vs ayer
+                        </p>
                     </div>
                 </Card>
                 <Card className="kpi-card">
@@ -50,9 +177,8 @@ const Reports = () => {
                         <ShoppingBag size={24} />
                     </div>
                     <div className="kpi-content">
-                        <p className="kpi-label">Transacciones</p>
-                        <h3 className="kpi-value">45</h3>
-                        <p className="kpi-trend positive">+5.2% vs ayer</p>
+                        <p className="kpi-label">Transacciones Hoy</p>
+                        <h3 className="kpi-value">{stats.count}</h3>
                     </div>
                 </Card>
                 <Card className="kpi-card">
@@ -61,49 +187,125 @@ const Reports = () => {
                     </div>
                     <div className="kpi-content">
                         <p className="kpi-label">Ticket Promedio</p>
-                        <h3 className="kpi-value">$3.442</h3>
-                        <p className="kpi-trend negative">-2.1% vs ayer</p>
+                        <h3 className="kpi-value">${stats.average.toLocaleString()}</h3>
                     </div>
                 </Card>
             </div>
 
             <div className="reports-content">
-                {/* Sección de Gráficos */}
+                {/* Sección de Gráficos Superiores */}
                 <div className="charts-container">
+                    {/* Ventas por Hora */}
                     <Card className="chart-card main-chart">
                         <div className="card-header">
-                            <h3>Ventas por Hora</h3>
+                            <h3>Ventas por Hora ({dateRange.start.split('-').reverse().join('/')})</h3>
                         </div>
-                        <div className="chart-placeholder-large">
-                            {/* Representación visual de un gráfico de líneas */}
-                            <svg viewBox="0 0 100 40" className="chart-svg">
-                                <path d="M0,35 Q10,30 20,32 T40,25 T60,15 T80,20 T100,5" fill="none" stroke="var(--primary)" strokeWidth="2" />
-                                <path d="M0,35 L0,40 L100,40 L100,5 L100,40 Z" fill="url(#gradient)" opacity="0.2" />
-                                <defs>
-                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.5" />
-                                        <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
+                        <div className="list-chart">
+                            {cleanedHourlySales.length > 0 ? (
+                                cleanedHourlySales.map((item) => (
+                                    <div key={item.hour} className="list-chart-item">
+                                        <div className="list-chart-info">
+                                            <span className="list-chart-label">{item.hour}:00</span>
+                                            <span className="list-chart-value">${item.numericTotal.toLocaleString()}</span>
+                                        </div>
+                                        <div className="progress-bg">
+                                            <div
+                                                className="progress-fill"
+                                                style={{ width: `${(item.numericTotal / maxHourlyTotal) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="no-data">No hay datos para este día</div>
+                            )}
                         </div>
                     </Card>
+
+                    {/* Métodos de Pago */}
                     <Card className="chart-card">
                         <div className="card-header">
-                            <h3>Métodos de Pago</h3>
+                            <h3>Métodos de Pago (Histórico)</h3>
                         </div>
-                        <div className="donut-chart-placeholder">
-                            <div className="donut-segment" style={{ '--deg': '220deg', '--color': 'var(--primary)' }}></div>
-                            <div className="donut-segment" style={{ '--deg': '100deg', '--color': 'var(--success)' }}></div>
-                            <div className="donut-segment" style={{ '--deg': '40deg', '--color': 'var(--warning)' }}></div>
+                        <div
+                            className="donut-chart-placeholder"
+                            style={{
+                                background: paymentMethods.length > 0
+                                    ? `conic-gradient(
+                                        var(--primary) 0deg ${cashAngle}deg, 
+                                        var(--success) ${cashAngle}deg 360deg
+                                      )`
+                                    : 'var(--bg-secondary)'
+                            }}
+                        >
                             <div className="donut-center">
                                 <span>Total</span>
                             </div>
                         </div>
                         <div className="chart-legend">
-                            <div className="legend-item"><span className="dot" style={{ background: 'var(--primary)' }}></span>Tarjeta (60%)</div>
-                            <div className="legend-item"><span className="dot" style={{ background: 'var(--success)' }}></span>Efectivo (30%)</div>
-                            <div className="legend-item"><span className="dot" style={{ background: 'var(--warning)' }}></span>Otros (10%)</div>
+                            {paymentMethods.map((pm, index) => (
+                                <div key={index} className="legend-item">
+                                    <span className="dot" style={{ background: index === 0 ? 'var(--primary)' : 'var(--success)' }}></span>
+                                    {pm.payment_method === 'card' ? 'Tarjeta' : 'Efectivo'} ({pm.count})
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Sección de Desglose (Categorías y Vendedores) */}
+                <div className="charts-container secondary-charts">
+                    {/* Ventas por Categoría */}
+                    <Card className="chart-card">
+                        <div className="card-header">
+                            <h3>Ventas por Categoría</h3>
+                        </div>
+                        <div className="list-chart">
+                            {categorySales.map((cat, index) => (
+                                <div key={index} className="list-chart-item">
+                                    <div className="list-chart-info">
+                                        <span className="list-chart-label">{cat.category || 'Sin Categoría'}</span>
+                                        <span className="list-chart-value">${cat.total.toLocaleString()}</span>
+                                    </div>
+                                    <div className="progress-bg">
+                                        <div
+                                            className="progress-fill"
+                                            style={{ width: `${(cat.total / (categorySales[0]?.total || 1)) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            ))}
+                            {categorySales.length === 0 && <div className="no-data">No hay datos en este rango</div>}
+                        </div>
+                    </Card>
+
+                    {/* Ventas por Vendedor */}
+                    <Card className="chart-card">
+                        <div className="card-header">
+                            <h3>Rendimiento Vendedores</h3>
+                        </div>
+                        <div className="table-container small-table">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Vendedor</th>
+                                        <th>Ventas</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sellerSales.map((seller, index) => (
+                                        <tr key={index}>
+                                            <td>{seller.username || 'Desconocido'}</td>
+                                            <td>{seller.count}</td>
+                                            <td>${seller.total.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                    {sellerSales.length === 0 && (
+                                        <tr><td colSpan="3" className="text-center text-muted">No hay datos</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </Card>
                 </div>
@@ -111,14 +313,14 @@ const Reports = () => {
                 {/* Tabla de Transacciones */}
                 <Card className="transactions-card">
                     <div className="card-header">
-                        <h3>Últimas Transacciones</h3>
+                        <h3>Detalle de Transacciones</h3>
                     </div>
                     <div className="table-container">
                         <table className="data-table">
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Hora</th>
+                                    <th>Fecha</th>
                                     <th>Cliente</th>
                                     <th>Método</th>
                                     <th>Total</th>
@@ -128,8 +330,8 @@ const Reports = () => {
                             <tbody>
                                 {transactions.map((trx) => (
                                     <tr key={trx.id}>
-                                        <td className="font-medium">{trx.id}</td>
-                                        <td className="text-muted">{trx.date.split(' ')[1]}</td>
+                                        <td className="font-medium">#{trx.id}</td>
+                                        <td className="text-muted">{trx.date}</td>
                                         <td>{trx.customer}</td>
                                         <td>
                                             <div className="method-badge">
@@ -143,6 +345,11 @@ const Reports = () => {
                                         </td>
                                     </tr>
                                 ))}
+                                {transactions.length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" className="text-center py-4 text-muted">No hay transacciones en este rango</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

@@ -84,6 +84,23 @@
     border-top: 1px solid var(--glass-border);
 }
 
+.user-info {
+    padding: 0 1rem 1rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
 .logout-btn {
     color: var(--danger);
 }

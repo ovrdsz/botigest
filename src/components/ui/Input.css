@@ -35,7 +35,8 @@
 
 /* Floating label effect */
 .input-field:focus~.input-label,
-.input-field:not(:placeholder-shown)~.input-label {
+.input-field:not(:placeholder-shown)~.input-label,
+.input-group.has-placeholder .input-label {
     top: -0.6rem;
     left: 0.8rem;
     font-size: 0.75rem;

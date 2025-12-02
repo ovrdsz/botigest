@@ -25,17 +25,39 @@
 
 .stat-card {
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.5rem;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
 }
 
 .stat-icon-wrapper {
-    padding: 0.75rem;
-    border-radius: var(--radius-md);
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-icon-wrapper.success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.stat-icon-wrapper.primary {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
+}
+
+.stat-icon-wrapper.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning);
+}
+
+.stat-icon-wrapper.danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
 }
 
 .stat-content {
@@ -144,6 +166,39 @@
 .bar.active {
     background: var(--primary);
     box-shadow: 0 0 15px var(--primary-glow);
+}
+
+/* List Chart (Copied from Reports.css) */
+.list-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.list-chart-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.list-chart-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.progress-bg {
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
 }
 
 /* Activity List */
