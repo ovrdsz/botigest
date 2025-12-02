@@ -38,12 +38,12 @@ const Reports = () => {
                 sellSales,
                 hourSales
             ] = await Promise.all([
-                SaleRepository.getDailyStats(), // Still gets "today" stats for KPIs
+                SaleRepository.getDailyStats(), // Aún obtiene estadísticas de "hoy" para KPIs
                 SaleRepository.getSalesByDateRange(dateRange.start, dateRange.end),
-                SaleRepository.getSalesByPaymentMethod(), // Global stats
+                SaleRepository.getSalesByPaymentMethod(), // Estadísticas globales
                 SaleRepository.getSalesByCategory(dateRange.start, dateRange.end),
                 SaleRepository.getSalesBySeller(dateRange.start, dateRange.end),
-                SaleRepository.getHourlySales(dateRange.start) // Hourly for start date
+                SaleRepository.getHourlySales(dateRange.start) // Por hora para la fecha de inicio
             ]);
 
             setStats(dailyStats);
@@ -75,7 +75,7 @@ const Reports = () => {
                 return;
             }
 
-            // Format data for export (Spanish headers and values)
+            // Formatear datos para exportar (encabezados y valores en español)
             const formattedData = data.map(item => ({
                 'ID': item.id,
                 'Fecha': new Date(item.created_at).toLocaleString(),
@@ -98,17 +98,17 @@ const Reports = () => {
         setDateRange(prev => ({ ...prev, [name]: value }));
     };
 
-    // Clean and parse hourly sales data
+    // Limpiar y parsear datos de ventas por hora
     const cleanedHourlySales = hourlySales.map(h => {
-        // Remove any non-numeric characters except dot and minus (if any)
-        // This handles cases like "$250,000" or "250.000" depending on locale
-        // Assuming the DB returns a number or a string representation of a number
+        // Eliminar caracteres no numéricos excepto punto y menos (si los hay)
+        // Esto maneja casos como "$250,000" o "250.000" dependiendo de la configuración regional
+        // Asumiendo que la DB retorna un número o una representación en string de un número
         let val = h.total;
         if (typeof val === 'string') {
-            // Remove currency symbols and commas (assuming dot is decimal separator or simple integer)
-            // If the format is 1.000,00 (European), this simple replace might be risky, 
-            // but SQLite usually returns standard numbers. 
-            // Let's just try to parse it safely.
+            // Eliminar símbolos de moneda y comas (asumiendo punto como separador decimal o entero simple)
+            // Si el formato es 1.000,00 (Europeo), este reemplazo simple podría ser riesgoso, 
+            // pero SQLite usualmente retorna números estándar. 
+            // Intentemos parsearlo de forma segura.
             val = parseFloat(val);
         }
         return {
@@ -117,13 +117,13 @@ const Reports = () => {
         };
     });
 
-    // Calculate max value for charts scaling
+    // Calcular valor máximo para escala de gráficos
     const maxHourlyTotal = Math.max(...cleanedHourlySales.map(h => h.numericTotal), 1);
 
-    // Calculate angles for donut chart
+    // Calcular ángulos para gráfico de dona
     const cashCount = paymentMethods.find(p => p.payment_method === 'cash')?.count || 0;
     const cardCount = paymentMethods.find(p => p.payment_method === 'card')?.count || 0;
-    const totalCount = cashCount + cardCount || 1; // Avoid division by zero
+    const totalCount = cashCount + cardCount || 1; // Evitar división por cero
     const cashAngle = (cashCount / totalCount) * 360;
 
     return (

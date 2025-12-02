@@ -41,7 +41,7 @@ export const CategoryRepository = {
     },
 
     delete: async (id) => {
-        // Check if category is used by products
+        // Verificar si la categoría es usada por productos
         const checkQuery = `SELECT COUNT(*) as count FROM products WHERE category_id = ?`;
         const checkResult = await selectQuery(checkQuery, [id]);
 

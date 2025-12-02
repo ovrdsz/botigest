@@ -9,7 +9,7 @@ export const SaleRepository = {
     const userId = saleData.user_id || 'NULL';
     const customerId = saleData.customer_id || 'NULL';
 
-    // Handle paymentMethod (camelCase) or payment_method (snake_case)
+    // Manejar paymentMethod (camelCase) o payment_method (snake_case)
     const rawPaymentMethod = saleData.paymentMethod || saleData.payment_method || 'cash';
     const paymentMethod = `'${rawPaymentMethod.replace(/'/g, "''")}'`;
 
@@ -91,7 +91,7 @@ export const SaleRepository = {
     const result = await selectQuery(query);
     const { count, total } = result[0];
 
-    // Get yesterday's stats for comparison
+    // Obtener estadísticas de ayer para comparación
     const yesterdayQuery = `
       SELECT 
         COUNT(*) as count,
@@ -140,7 +140,7 @@ export const SaleRepository = {
   },
 
   getSalesByCategory: async (startDate, endDate) => {
-    // Default to today if no dates provided
+    // Por defecto usar hoy si no se proveen fechas
     const start = startDate || new Date().toISOString().split('T')[0];
     const end = endDate || start;
 

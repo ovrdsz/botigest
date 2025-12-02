@@ -26,7 +26,7 @@ const Settings = () => {
         taxRate: '19'
     });
 
-    // User Management State
+    // Estado de Gestión de Usuarios
     const [users, setUsers] = useState([]);
     const [showUserModal, setShowUserModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
@@ -65,7 +65,7 @@ const Settings = () => {
         setSettings(prev => ({ ...prev, [key]: value }));
     };
 
-    // User Management Functions
+    // Funciones de Gestión de Usuarios
     const loadUsers = async () => {
         try {
             const usersList = await UserRepository.getAll();
@@ -79,12 +79,12 @@ const Settings = () => {
         e.preventDefault();
         try {
             if (editingUser) {
-                // Update
+                // Actualizar
                 if (!userForm.username) return alert('El nombre de usuario es obligatorio');
                 await UserRepository.update(editingUser.id, userForm);
                 alert('Usuario actualizado correctamente');
             } else {
-                // Create
+                // Crear
                 if (!userForm.username || !userForm.password) return alert('Usuario y contraseña son obligatorios');
                 await UserRepository.create(userForm);
                 alert('Usuario creado correctamente');
@@ -120,10 +120,10 @@ const Settings = () => {
         setShowUserModal(true);
     };
 
-    // Backup and Restore Functions
+    // Funciones de Respaldo y Restauración
     const handleBackup = async () => {
         try {
-            // Checkpoint WAL to ensure all data is in the main DB file
+            // Checkpoint WAL para asegurar que todos los datos estén en el archivo DB principal
             try {
                 await executeQuery('PRAGMA wal_checkpoint(TRUNCATE);');
             } catch (e) {
@@ -133,7 +133,7 @@ const Settings = () => {
             const { appDataDir } = await import('@tauri-apps/api/path');
             const roamingDir = await appDataDir();
 
-            // Based on logs, DB is in Roaming
+            // Basado en logs, la DB está en Roaming
             const dbPath = await join(roamingDir, 'botigest.db');
 
             const filePath = await save({
@@ -146,9 +146,9 @@ const Settings = () => {
 
             if (!filePath) return;
 
-            // Read the DB file as binary
+            // Leer el archivo DB como binario
             const dbContent = await readFile(dbPath);
-            // Write to the selected location
+            // Escribir en la ubicación seleccionada
             await writeFile(filePath, dbContent);
 
             alert('Respaldo creado exitosamente.');
@@ -183,7 +183,7 @@ const Settings = () => {
             const { writeFile, readFile } = await import('@tauri-apps/plugin-fs');
             const roamingDir = await appDataDir();
 
-            // Write to a temporary "pending restore" file
+            // Escribir en un archivo temporal "pendiente de restauración"
             const pendingPath = await join(roamingDir, 'botigest.restore.db');
 
             const backupContent = await readFile(filePath);

@@ -11,11 +11,11 @@ export const CashShiftRepository = {
     },
 
     getCurrentOpenShift: async (userId) => {
-        // If userId is provided, check for that user's open shift (optional strict mode)
-        // Or generally check for any open shift if we want single-terminal logic
-        // For now, let's assume one open shift per user or system-wide? 
-        // Let's go with system-wide for a simple POS, or per user. 
-        // Given the requirements, let's check if *this* user has an open shift.
+        // Si se proporciona userId, verificar el turno abierto de ese usuario (modo estricto opcional)
+        // O verificar cualquier turno abierto si queremos lógica de terminal única
+        // Por ahora, ¿asumimos un turno abierto por usuario o para todo el sistema? 
+        // Vamos con todo el sistema para un POS simple, o por usuario. 
+        // Dados los requisitos, verifiquemos si *este* usuario tiene un turno abierto.
         const query = `SELECT * FROM cash_shifts WHERE user_id = ? AND status = 'open' ORDER BY start_time DESC LIMIT 1`;
         const result = await selectQuery(query, [userId]);
         return result[0];

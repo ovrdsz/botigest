@@ -20,7 +20,7 @@ export const initDB = async () => {
     try {
         const database = await getDb();
 
-        // Configure database for better concurrency
+        // Configurar base de datos para mejor concurrencia
         await database.execute('PRAGMA journal_mode=WAL;');
         await database.execute('PRAGMA busy_timeout=5000;');
         await database.execute('PRAGMA foreign_keys=ON;');
@@ -29,28 +29,28 @@ export const initDB = async () => {
             await database.execute(query);
         }
 
-        // Migration: Add points column if it doesn't exist (ignore error if it does)
+        // Migración: Agregar columna points si no existe
         try {
             await database.execute('ALTER TABLE customers ADD COLUMN points INTEGER DEFAULT 0');
         } catch (e) {
-            // Column likely already exists
+            // La columna probablemente ya existe
         }
 
-        // Migration: Add shift_id column to sales
+        // Migración: Agregar columna shift_id a sales
         try {
             await database.execute('ALTER TABLE sales ADD COLUMN shift_id INTEGER REFERENCES cash_shifts(id)');
         } catch (e) {
-            // Column likely already exists
+            // La columna probablemente ya existe
         }
 
-        // Seed default admin user if no users exist
+        // Crear usuario admin por defecto si no existe ninguno
         try {
             const users = await UserRepository.getAll();
             if (users.length === 0) {
                 console.log('Seeding default admin user...');
                 await UserRepository.create({
                     username: 'admin',
-                    password: 'admin123', // Default password
+                    password: 'admin123', // Contraseña por defecto
                     role: 'admin'
                 });
                 console.log('Default admin user created');

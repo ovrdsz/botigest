@@ -67,7 +67,7 @@ export const ProductRepository = {
     },
 
     deleteOrphans: async () => {
-        // 1. Get IDs of products without category
+        // 1. Obtener IDs de productos sin categoría
         const findQuery = `SELECT id FROM products WHERE category_id IS NULL`;
         const orphans = await selectQuery(findQuery);
 
@@ -75,10 +75,10 @@ export const ProductRepository = {
 
         const ids = orphans.map(o => o.id).join(',');
 
-        // 2. Delete sale_items associated with these products
+        // 2. Eliminar items de venta asociados a estos productos
         await executeQuery(`DELETE FROM sale_items WHERE product_id IN (${ids})`);
 
-        // 3. Delete the products
+        // 3. Eliminar los productos
         const deleteQuery = `DELETE FROM products WHERE id IN (${ids})`;
         await executeQuery(deleteQuery);
 
