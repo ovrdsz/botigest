@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is persisted in localStorage
+        // Verificar si el usuario persiste en localStorage
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             setUser(JSON.parse(storedUser));
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
                 return { success: false, error: 'Contraseña incorrecta' };
             }
 
-            // Don't store the hash in the state/localstorage
+            // No almacenar el hash en el estado/localstorage
             const { password_hash, ...safeUser } = userRecord;
 
             setUser(safeUser);

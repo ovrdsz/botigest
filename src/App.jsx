@@ -32,7 +32,7 @@ function App() {
 
   useEffect(() => {
     const init = async () => {
-      // Check for pending restore
+      // Verificar restauración pendiente
       try {
         const { appDataDir, join } = await import('@tauri-apps/api/path');
         const { exists, rename, remove } = await import('@tauri-apps/plugin-fs');
@@ -46,12 +46,12 @@ function App() {
         if (await exists(pendingPath)) {
           console.log('Found pending restore file. Applying...');
 
-          // Clean up WAL/SHM to prevent corruption
+          // Limpiar WAL/SHM para prevenir corrupción
           try { await remove(walPath); } catch (e) { /* ignore */ }
           try { await remove(shmPath); } catch (e) { /* ignore */ }
 
-          // Swap files
-          // We can try to rename current to .old just in case
+          // Intercambiar archivos
+          // Podemos intentar renombrar el actual a .old por si acaso
           const backupPath = await join(roamingDir, 'botigest.db.old');
           try {
             if (await exists(backupPath)) await remove(backupPath);
@@ -60,7 +60,7 @@ function App() {
             console.error('Failed to backup current DB during restore:', e);
           }
 
-          // Move pending to actual DB
+          // Mover pendiente a DB real
           await rename(pendingPath, dbPath);
           console.log('Restore applied successfully.');
         }
@@ -68,7 +68,7 @@ function App() {
         console.error('Error applying restore:', error);
       }
 
-      // Initialize DB
+      // Inicializar DB
       await initDB();
       setIsInitialized(true);
     };

@@ -6,7 +6,7 @@ const Ticket = React.forwardRef(({ sale, businessInfo }, ref) => {
 
     const { items, total, date, id, paymentMethod, user, customer } = sale;
 
-    // Map settings keys to local variables
+    // Mapear claves de configuración a variables locales
     const name = businessInfo?.businessName || 'Mi Tienda POS';
     const address = businessInfo?.businessAddress || 'Av. Principal 123';
     const phone = businessInfo?.businessPhone || '+56 9 1234 5678';

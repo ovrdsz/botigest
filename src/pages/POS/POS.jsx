@@ -31,7 +31,7 @@ const POS = () => {
     const [lastSale, setLastSale] = useState(null);
     const [businessInfo, setBusinessInfo] = useState(null);
 
-    // Cash Management State
+    // Estado de Gestión de Caja
     const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
     const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
     const [startAmount, setStartAmount] = useState('');
@@ -101,7 +101,7 @@ const POS = () => {
 
             const saleId = await SaleRepository.create(saleData);
 
-            // Prepare sale object for ticket
+            // Preparar objeto de venta para ticket
             const completedSale = {
                 ...saleData,
                 id: saleId,
@@ -111,17 +111,17 @@ const POS = () => {
 
             setLastSale(completedSale);
 
-            // Success feedback
-            // alert('Venta realizada con éxito'); // Removed alert to not block printing flow immediately
+            // Feedback de éxito
+            // alert('Venta realizada con éxito'); // Alerta eliminada para no bloquear el flujo de impresión inmediatamente
             setCart([]);
             setSelectedCustomer(null);
-            loadData(); // Reload to update stock
+            loadData(); // Recargar para actualizar stock
 
             if (searchInputRef.current) {
                 searchInputRef.current.focus();
             }
 
-            // Trigger print after state update
+            // Activar impresión después de actualizar estado
             setTimeout(() => {
                 window.print();
             }, 500);
@@ -167,7 +167,7 @@ const POS = () => {
         }
     };
 
-    // Focus search input on mount for scanner readiness
+    // Enfocar input de búsqueda al montar para preparación del escáner
     useEffect(() => {
         if (searchInputRef.current && !showOpenShiftModal && !showCloseShiftModal) {
             searchInputRef.current.focus();
@@ -194,7 +194,7 @@ const POS = () => {
             }
             return [...prevCart, { ...product, quantity: 1 }];
         });
-        // Keep focus for continuous scanning
+        // Mantener foco para escaneo continuo
         if (searchInputRef.current) {
             searchInputRef.current.focus();
             setSearchQuery('');
@@ -209,7 +209,7 @@ const POS = () => {
         setCart(prevCart => prevCart.map(item => {
             if (item.id === productId) {
                 const newQuantity = Math.max(1, item.quantity + delta);
-                // Check stock limit only when increasing
+                // Verificar límite de stock solo al aumentar
                 if (delta > 0 && newQuantity > item.stock) {
                     alert(`No hay suficiente stock. Stock disponible: ${item.stock}`);
                     return item;
@@ -228,7 +228,7 @@ const POS = () => {
         const exactMatch = products.find(p => p.code === query);
         if (exactMatch) {
             addToCart(exactMatch);
-            setSearchQuery(''); // Clear after scan
+            setSearchQuery(''); // Limpiar después de escanear
         }
     };
 
@@ -251,7 +251,7 @@ const POS = () => {
 
     if (cashLoading) return <div className="p-4">Cargando sistema de caja...</div>;
 
-    // View: Open Shift (When no shift is active)
+    // Vista: Abrir Caja (Cuando no hay turno activo)
     if (!currentShift) {
         return (
             <div className="flex items-center justify-center h-full bg-black/20">
@@ -279,7 +279,7 @@ const POS = () => {
         );
     }
 
-    // View: Close Shift (When close modal is active)
+    // Vista: Cerrar Caja (Cuando el modal de cierre está activo)
     if (showCloseShiftModal) {
         return (
             <div className="flex items-center justify-center h-full bg-black/20">
@@ -316,10 +316,10 @@ const POS = () => {
         );
     }
 
-    // View: Active POS
+    // Vista: POS Activo
     return (
         <div className="pos-container">
-            {/* Left Panel: Products */}
+            {/* Panel Izquierdo: Productos */}
             <div className="pos-products-section">
                 <div className="pos-header flex justify-between items-center gap-4">
                     <div className="search-bar-container flex-1">
@@ -385,7 +385,7 @@ const POS = () => {
                 </div>
             </div>
 
-            {/* Right Panel: Ticket/Cart */}
+            {/* Panel Derecho: Ticket/Carrito */}
             <div className="pos-ticket-section">
                 <Card className="ticket-card">
                     <div className="ticket-header">
@@ -517,7 +517,7 @@ const POS = () => {
                 </Card>
             </div>
 
-            {/* Hidden Ticket for Printing */}
+            {/* Ticket Oculto para Impresión */}
             <Ticket sale={lastSale} businessInfo={businessInfo} />
         </div>
     );

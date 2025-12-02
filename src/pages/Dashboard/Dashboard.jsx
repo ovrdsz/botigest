@@ -57,8 +57,8 @@ const Dashboard = () => {
                 SaleRepository.getHourlySales()
             ]);
 
-            // Update Hourly Sales for Chart (Simple mapping for now)
-            // In a real chart library we would map this to the chart data structure
+            // Actualizar Ventas por Hora para Gráfico (Mapeo simple por ahora)
+            // En una librería de gráficos real mapearíamos esto a la estructura de datos del gráfico
             // setHourlySales(hourlyData); 
 
             setStats([
