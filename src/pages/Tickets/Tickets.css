@@ -1,0 +1,572 @@
+.tickets-page {
+    padding: 24px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: var(--bg-primary);
+    overflow: hidden;
+    color: var(--text-primary);
+}
+
+.tickets-container {
+    flex: 1;
+    display: flex;
+    gap: 24px;
+    min-height: 0;
+}
+
+.tickets-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    /* Increased radius */
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.tickets-column h2 {
+    margin-bottom: 24px;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+    letter-spacing: -0.025em;
+}
+
+.tickets-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px;
+    /* Increased padding to prevent hover clipping */
+}
+
+/* Custom Scrollbar */
+.tickets-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tickets-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* History Table Styles */
+.tickets-table-container {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: rgba(30, 41, 59, 0.4);
+}
+
+.tickets-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.tickets-table th {
+    text-align: left;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tickets-table td {
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+}
+
+.tickets-table tr:last-child td {
+    border-bottom: none;
+}
+
+.tickets-table tr {
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.tickets-table tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tickets-table .text-muted {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.ticket-type-badge.mini {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.ticket-title-cell {
+    font-weight: 500;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tickets-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+    align-items: flex-start;
+    /* Allow multi-line badges if needed */
+    margin-bottom: 12px;
+}
+
+.ticket-type-badge {
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.ticket-type-badge.observation {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.ticket-type-badge.stock_request {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.ticket-type-badge.product_update {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Ensure content sits above the shine effect */
+.ticket-card-item>* {
+    position: relative;
+    z-index: 2;
+}
+
+.ticket-type-badge.shrinkage {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.ticket-status-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ticket-status-badge.pending {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+}
+
+.ticket-status-badge.approved {
+    color: #10b981;
+}
+
+.ticket-status-badge.rejected {
+    color: #ef4444;
+}
+
+.ticket-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+.ticket-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Modal Form Styles - Matching Global Inputs */
+.ticket-form-group {
+    margin-bottom: 16px;
+    padding: 0 24px;
+}
+
+.ticket-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.ticket-input,
+.ticket-select,
+.ticket-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    /* Rounded Theme */
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: var(--transition);
+    outline: none;
+}
+
+.ticket-input:focus,
+.ticket-select:focus,
+.ticket-textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.ticket-textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.ticket-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+.section-panel {
+    /* Removed background/border for alignment per user request */
+    padding: 0;
+    margin-bottom: 16px;
+    background: transparent;
+    border: none;
+}
+
+/* Global Align for all Ticket Subtitles */
+.section-title {
+    padding-left: 24px;
+}
+
+.section-title.stock {
+    color: #fbbf24;
+}
+
+.section-title.update {
+    color: #34d399;
+}
+
+/* Detail Review Styles */
+.ticket-details-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.detail-section h4 {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.detail-value {
+    background: var(--bg-primary);
+    /* Darker background for content */
+    padding: 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    white-space: pre-wrap;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.changes-preview {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 16px;
+    border-radius: var(--radius-md);
+}
+
+.change-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(16, 185, 129, 0.3);
+}
+
+.change-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Fix option visibility in dark mode */
+.ticket-select option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background-color: var(--bg-secondary);
+    border-radius: 32px;
+    /* Rounded Theme */
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xl);
+    animation: modal-slide-up 0.3s ease-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.modal-header button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.modal-header button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.ticket-form-group {
+    padding: 0 24px;
+    margin-bottom: 20px;
+}
+
+.ticket-form-group:first-child {
+    padding-top: 0;
+}
+
+form {
+    padding-top: 8px;
+}
+
+.modal-actions {
+    padding: 16px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 24px;
+    background: rgba(15, 23, 42, 0.3);
+}
+
+.modal-actions button {
+    border-radius: 9999px !important;
+    /* Pill buttons */
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+}
+
+@keyframes modal-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ticket Type Grid Selection */
+.ticket-type-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+}
+
+.ticket-type-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    color: var(--text-primary);
+    width: 100%;
+}
+
+.ticket-type-card:hover {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
+    transform: translateX(4px);
+}
+
+.ticket-type-card .icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+}
+
+/* Specific colors for types */
+.ticket-type-card.option-arrival:hover .icon {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.ticket-type-card.option-stock:hover .icon {
+    background: rgba(245, 158, 11, 0.2);
+}
+
+.ticket-type-card.option-product:hover .icon {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.ticket-type-card.option-shrinkage:hover .icon {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* Form Layout Improvements */
+/* Form Layout Improvements */
+.form-row {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    margin-bottom: 20px;
+    padding: 0 24px;
+}
+
+.form-row .ticket-form-group {
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.ticket-form-group.flex-1 {
+    flex: 1;
+    min-width: 0;
+    /* Prevent overflow */
+}
+
+/* Upload Zone Styles */
+.upload-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 16px;
+    padding: 32px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(15, 23, 42, 0.3);
+}
+
+.upload-zone:hover {
+    border-color: var(--primary-color);
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.upload-zone.has-file {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border-style: solid;
+}
+
+.upload-zone svg {
+    margin-bottom: 8px;
+    color: var(--text-muted);
+}
+
+.upload-zone:hover svg {
+    color: var(--primary-color);
+    transform: scale(1.1);
+    transition: transform 0.2s;
+}
+
+.upload-zone.has-file svg {
+    color: #10b981;
+}

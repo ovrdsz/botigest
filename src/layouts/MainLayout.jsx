@@ -1,13 +1,34 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Package, ShoppingCart, Users, FileText, Settings, LogOut, Tag } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, FileText, Settings, LogOut, Tag, MessageSquare } from 'lucide-react';
 import WindowControls from '../components/ui/WindowControls';
+import { SettingsRepository } from '../repositories/settingsRepository';
 import './MainLayout.css';
 
 const MainLayout = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
+    const [appName, setAppName] = React.useState('Botigest');
+
+    const updateAppName = async () => {
+        const name = await SettingsRepository.get('appName');
+        if (name) setAppName(name);
+    };
+
+    React.useEffect(() => {
+        updateAppName();
+
+        const handleSettingsChange = () => {
+            updateAppName();
+        };
+
+        window.addEventListener('app-settings-changed', handleSettingsChange);
+
+        return () => {
+            window.removeEventListener('app-settings-changed', handleSettingsChange);
+        };
+    }, []);
 
     const handleLogout = () => {
         logout();
@@ -19,8 +40,8 @@ const MainLayout = () => {
             <WindowControls />
             <aside className="sidebar glass-panel">
                 <div className="sidebar-header">
-                    <div className="sidebar-logo">B</div>
-                    <h2>Botigest</h2>
+                    <div className="sidebar-logo">{appName.charAt(0)}</div>
+                    <h2>{appName}</h2>
                 </div>
 
                 <nav className="sidebar-nav">
@@ -44,6 +65,18 @@ const MainLayout = () => {
                     <NavLink to="/pos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <ShoppingCart size={20} />
                         <span>Ventas (POS)</span>
+                    </NavLink>
+
+                    {user?.role === 'admin' && (
+                        <NavLink to="/cash-shifts" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                            <FileText size={20} />
+                            <span>Caja</span>
+                        </NavLink>
+                    )}
+
+                    <NavLink to="/tickets" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                        <MessageSquare size={20} />
+                        <span>Soporte / Tickets</span>
                     </NavLink>
 
                     {user?.role === 'admin' && (

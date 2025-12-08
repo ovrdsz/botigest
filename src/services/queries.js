@@ -65,10 +65,27 @@ export const CREATE_TABLES = [
     end_time DATETIME,
     status TEXT DEFAULT 'open',
     notes TEXT,
-    FOREIGN KEY (user_id) REFERENCES users (id)
+    closed_by_user_id INTEGER,
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    FOREIGN KEY (closed_by_user_id) REFERENCES users (id)
   )`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    title TEXT,
+    description TEXT,
+    payload TEXT,
+    attachment_path TEXT,
+    created_by INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_by INTEGER,
+    resolved_at DATETIME,
+    FOREIGN KEY (created_by) REFERENCES users (id),
+    FOREIGN KEY (resolved_by) REFERENCES users (id)
   )`
 ];

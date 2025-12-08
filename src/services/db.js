@@ -43,6 +43,47 @@ export const initDB = async () => {
             // La columna probablemente ya existe
         }
 
+        // Migración: Agregar columna closed_by_user_id a cash_shifts
+        try {
+            await database.execute('ALTER TABLE cash_shifts ADD COLUMN closed_by_user_id INTEGER REFERENCES users(id)');
+        } catch (e) {
+            // La columna probablemente ya existe
+        }
+
+        // Crear tabla de tickets si no existe (esto normalmente se maneja en CREATE_TABLES, pero por si acaso la DB ya existe)
+        await database.execute(`
+            CREATE TABLE IF NOT EXISTS tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                title TEXT,
+                description TEXT,
+                payload TEXT,
+                attachment_path TEXT,
+                created_by INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_by INTEGER,
+                resolved_at DATETIME,
+                FOREIGN KEY (created_by) REFERENCES users (id),
+                FOREIGN KEY (resolved_by) REFERENCES users (id)
+            )
+        `);
+
+        // Trigger: Prevenir stock negativo
+        try {
+            await database.execute(`
+                CREATE TRIGGER IF NOT EXISTS prevent_negative_stock
+                BEFORE UPDATE ON products
+                FOR EACH ROW
+                WHEN NEW.stock < 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'El stock no puede ser negativo');
+                END;
+            `);
+        } catch (e) {
+            console.error('Error creating trigger:', e);
+        }
+
         // Crear usuario admin por defecto si no existe ninguno
         try {
             const users = await UserRepository.getAll();

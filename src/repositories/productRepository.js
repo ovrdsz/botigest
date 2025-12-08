@@ -61,6 +61,11 @@ export const ProductRepository = {
         return await executeQuery(query, params);
     },
 
+    updateStock: async (id, newStock) => {
+        const query = `UPDATE products SET stock = ? WHERE id = ?`;
+        return await executeQuery(query, [newStock, id]);
+    },
+
     delete: async (id) => {
         const query = `DELETE FROM products WHERE id = ?`;
         return await executeQuery(query, [id]);

@@ -1,0 +1,16 @@
+.cash-shifts-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.diff-positive {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.diff-negative {
+    color: var(--danger);
+    font-weight: 500;
+}

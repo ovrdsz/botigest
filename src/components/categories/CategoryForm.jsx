@@ -38,6 +38,7 @@ const CategoryForm = ({ onSubmit, onCancel, initialData }) => {
                     onChange={handleChange}
                     required
                     placeholder="Nombre de la categoría"
+                    maxLength={50}
                 />
             </div>
 
@@ -50,6 +51,7 @@ const CategoryForm = ({ onSubmit, onCancel, initialData }) => {
                     onChange={handleChange}
                     placeholder="Descripción opcional"
                     rows={3}
+                    maxLength={200}
                 />
             </div>
 

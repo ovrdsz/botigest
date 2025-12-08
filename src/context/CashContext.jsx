@@ -29,6 +29,20 @@ export const CashProvider = ({ children }) => {
         }
     };
 
+    const getShiftDetails = async () => {
+        if (!currentShift) return null;
+        try {
+            const totals = await CashShiftRepository.getShiftSalesTotal(currentShift.id);
+            return {
+                ...currentShift,
+                ...totals
+            };
+        } catch (error) {
+            console.error('Error getting shift details:', error);
+            return null;
+        }
+    };
+
     const openShift = async (startAmount) => {
         try {
             const id = await CashShiftRepository.create(user.id, startAmount);
@@ -43,7 +57,7 @@ export const CashProvider = ({ children }) => {
     const closeShift = async (endAmount, expectedAmount, notes) => {
         try {
             if (!currentShift) return { success: false, error: 'No active shift' };
-            await CashShiftRepository.close(currentShift.id, endAmount, expectedAmount, notes);
+            await CashShiftRepository.close(currentShift.id, endAmount, expectedAmount, notes, user.id);
             setCurrentShift(null);
             return { success: true };
         } catch (error) {
@@ -53,7 +67,7 @@ export const CashProvider = ({ children }) => {
     };
 
     return (
-        <CashContext.Provider value={{ currentShift, openShift, closeShift, loading, refreshShift: checkOpenShift }}>
+        <CashContext.Provider value={{ currentShift, openShift, closeShift, loading, refreshShift: checkOpenShift, getShiftDetails }}>
             {children}
         </CashContext.Provider>
     );

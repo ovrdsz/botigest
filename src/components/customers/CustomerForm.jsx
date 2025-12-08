@@ -18,7 +18,13 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
     }, [initialData]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        let { name, value } = e.target;
+
+        // Strict: Phone only digits and +
+        if (name === 'phone') {
+            value = value.replace(/[^0-9+]/g, '');
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -27,9 +33,9 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
         onSubmit({
             ...formData,
-            points: Number(formData.points)
         });
     };
 
@@ -43,6 +49,7 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
                     onChange={handleChange}
                     required
                     placeholder="Nombre del cliente"
+                    maxLength={50}
                 />
             </div>
 
@@ -54,6 +61,7 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="correo@ejemplo.com"
+                    maxLength={80}
                 />
             </div>
 
@@ -64,17 +72,7 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="+56 9 1234 5678"
-                />
-            </div>
-
-            <div className="form-group">
-                <label>Puntos</label>
-                <Input
-                    name="points"
-                    type="number"
-                    value={formData.points}
-                    onChange={handleChange}
-                    min="0"
+                    maxLength={15}
                 />
             </div>
 

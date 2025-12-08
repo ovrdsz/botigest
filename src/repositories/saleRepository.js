@@ -195,5 +195,42 @@ export const SaleRepository = {
       GROUP BY payment_method
     `;
     return await selectQuery(query);
+  },
+
+  getTopSellingProducts: async (startDate, endDate) => {
+    const start = startDate || new Date().toISOString().split('T')[0];
+    const end = endDate || start;
+    const query = `
+      SELECT p.name, SUM(si.quantity) as count, SUM(si.subtotal) as total
+      FROM sale_items si
+      JOIN products p ON si.product_id = p.id
+      JOIN sales s ON si.sale_id = s.id
+      WHERE date(s.created_at) BETWEEN ? AND ?
+      GROUP BY p.name
+      ORDER BY count DESC
+      LIMIT 5
+    `;
+    return await selectQuery(query, [start, end]);
+  },
+
+  getProfitStats: async (startDate, endDate) => {
+    const start = startDate || new Date().toISOString().split('T')[0];
+    const end = endDate || start;
+    const query = `
+      SELECT 
+        SUM(si.subtotal) as revenue,
+        SUM(si.quantity * COALESCE(p.cost, 0)) as cost
+      FROM sale_items si
+      JOIN products p ON si.product_id = p.id
+      JOIN sales s ON si.sale_id = s.id
+      WHERE date(s.created_at) BETWEEN ? AND ?
+    `;
+    const result = await selectQuery(query, [start, end]);
+    const { revenue, cost } = result[0] || { revenue: 0, cost: 0 };
+    return {
+      revenue: revenue || 0,
+      cost: cost || 0,
+      profit: (revenue || 0) - (cost || 0)
+    };
   }
 };

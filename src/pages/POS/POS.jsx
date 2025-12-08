@@ -13,13 +13,14 @@ import Input from '../../components/ui/Input';
 import './POS.css';
 
 import { SettingsRepository } from '../../repositories/settingsRepository';
+import { telegramService } from '../../services/telegramService';
 
 const POS = () => {
     const [cart, setCart] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const searchInputRef = useRef(null);
     const { user } = useAuth();
-    const { currentShift, openShift, closeShift, loading: cashLoading } = useCash();
+    const { currentShift, openShift, closeShift, getShiftDetails, loading: cashLoading } = useCash();
 
     const [products, setProducts] = useState([]);
     const [customers, setCustomers] = useState([]);
@@ -37,6 +38,7 @@ const POS = () => {
     const [startAmount, setStartAmount] = useState('');
     const [endAmount, setEndAmount] = useState('');
     const [closeNotes, setCloseNotes] = useState('');
+    const [shiftTotals, setShiftTotals] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -75,6 +77,8 @@ const POS = () => {
         return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     };
 
+
+
     const handleCheckout = async (paymentMethod) => {
         if (cart.length === 0) return;
         if (!currentShift) {
@@ -111,6 +115,21 @@ const POS = () => {
 
             setLastSale(completedSale);
 
+            // Notificaciones Telegram
+            // 1. Nueva Venta
+            telegramService.notifyNewSale({
+                items: cart.map(item => ({ name: item.name, quantity: item.quantity })),
+                total: calculateTotal()
+            });
+
+            // 2. Alerta de Stock Bajo
+            cart.forEach(item => {
+                const remainingStock = item.stock - item.quantity;
+                if (remainingStock <= 5) {
+                    telegramService.notifyLowStock(item.name, remainingStock);
+                }
+            });
+
             // Feedback de éxito
             // alert('Venta realizada con éxito'); // Alerta eliminada para no bloquear el flujo de impresión inmediatamente
             setCart([]);
@@ -135,8 +154,12 @@ const POS = () => {
     const handleOpenShift = async (e) => {
         e.preventDefault();
         const amount = parseFloat(startAmount);
-        if (isNaN(amount)) {
-            alert('Ingrese un monto válido');
+        if (isNaN(amount) || amount < 0) {
+            alert('Ingrese un monto válido y positivo');
+            return;
+        }
+        if (amount > 100000000) {
+            alert('El monto inicial es demasiado alto.');
             return;
         }
         const result = await openShift(amount);
@@ -148,19 +171,48 @@ const POS = () => {
         }
     };
 
+    const handlePrepareCloseShift = async () => {
+        const details = await getShiftDetails();
+        if (details) {
+            setShiftTotals({
+                startAmount: details.start_amount,
+                cashSales: details.cash_sales || 0,
+                expectedTotal: details.start_amount + (details.cash_sales || 0)
+            });
+            setShowCloseShiftModal(true);
+        } else {
+            alert('Error obteniendo detalles del turno');
+        }
+    };
+
     const handleCloseShift = async (e) => {
         e.preventDefault();
         const amount = parseFloat(endAmount);
-        if (isNaN(amount)) {
-            alert('Ingrese un monto válido');
+        if (isNaN(amount) || amount < 0) {
+            alert('Ingrese un monto válido y positivo');
             return;
         }
 
-        const result = await closeShift(amount, 0, closeNotes);
+        if (amount > 100000000) {
+            alert('El monto final es demasiado alto.');
+            return;
+        }
+
+        // Validación de cuadre
+        const expected = shiftTotals?.expectedTotal || 0;
+        const difference = amount - expected;
+
+        if (Math.abs(difference) > 0 && !closeNotes.trim()) {
+            alert(`El monto no cuadra (Diferencia: $${difference.toLocaleString()}). Debe ingresar una nota justificando la diferencia.`);
+            return;
+        }
+
+        const result = await closeShift(amount, expected, closeNotes);
         if (result.success) {
             setShowCloseShiftModal(false);
             setEndAmount('');
             setCloseNotes('');
+            setShiftTotals(null);
             alert('Caja cerrada correctamente');
         } else {
             alert('Error al cerrar caja: ' + result.error);
@@ -268,6 +320,8 @@ const POS = () => {
                                 placeholder="0.00"
                                 autoFocus
                                 required
+                                min="0"
+                                max="100000000"
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -287,6 +341,21 @@ const POS = () => {
                     <h2 className="text-xl font-bold mb-4">Cierre de Caja</h2>
                     <p className="text-muted mb-6">Ingrese el efectivo real en caja para cerrar el turno.</p>
                     <form onSubmit={handleCloseShift}>
+                        <div className="mb-4 space-y-2">
+                            <div className="flex justify-between text-sm">
+                                <span>Monto Inicial:</span>
+                                <span>${shiftTotals?.startAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span>Ventas Efectivo:</span>
+                                <span>${shiftTotals?.cashSales.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-lg pt-2 border-t border-border-color">
+                                <span>Total Esperado:</span>
+                                <span>${shiftTotals?.expectedTotal.toLocaleString()}</span>
+                            </div>
+                        </div>
+
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-1">Efectivo en Caja (Real)</label>
                             <Input
@@ -296,6 +365,8 @@ const POS = () => {
                                 placeholder="0.00"
                                 autoFocus
                                 required
+                                min="0"
+                                max="100000000"
                             />
                         </div>
                         <div className="mb-4">
@@ -304,6 +375,7 @@ const POS = () => {
                                 value={closeNotes}
                                 onChange={(e) => setCloseNotes(e.target.value)}
                                 placeholder="Observaciones..."
+                                maxLength={500}
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -336,7 +408,7 @@ const POS = () => {
                     <Button
                         variant="secondary"
                         className="whitespace-nowrap"
-                        onClick={() => setShowCloseShiftModal(true)}
+                        onClick={handlePrepareCloseShift}
                     >
                         <Lock size={16} className="mr-2" />
                         Cerrar Caja

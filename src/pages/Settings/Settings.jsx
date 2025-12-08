@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Store, Printer, Users, Database, Save, X, Edit, Trash2 } from 'lucide-react';
+import { Store, Users, Database, Save, X, Edit, Trash2 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -17,13 +17,16 @@ import { relaunch, exit } from '@tauri-apps/plugin-process';
 const Settings = () => {
     const [activeTab, setActiveTab] = useState('general');
     const [settings, setSettings] = useState({
+        appName: 'Botigest',
         businessName: '',
         businessRut: '',
         businessAddress: '',
         businessPhone: '',
         businessEmail: '',
         currency: 'CLP ($)',
-        taxRate: '19'
+        taxRate: '19',
+        telegramBotToken: '',
+        telegramChatId: ''
     });
 
     // Estado de Gestión de Usuarios
@@ -54,6 +57,7 @@ const Settings = () => {
     const handleSave = async () => {
         try {
             await SettingsRepository.setMany(settings);
+            window.dispatchEvent(new CustomEvent('app-settings-changed'));
             alert('Configuración guardada correctamente');
         } catch (error) {
             console.error('Error saving settings:', error);
@@ -62,6 +66,9 @@ const Settings = () => {
     };
 
     const handleChange = (key, value) => {
+        if (key === 'businessPhone') {
+            value = value.replace(/[^0-9+]/g, '');
+        }
         setSettings(prev => ({ ...prev, [key]: value }));
     };
 
@@ -81,6 +88,15 @@ const Settings = () => {
             if (editingUser) {
                 // Actualizar
                 if (!userForm.username) return alert('El nombre de usuario es obligatorio');
+
+                // Prevent last admin demotion
+                if (editingUser.role === 'admin' && userForm.role !== 'admin') {
+                    const adminCount = users.filter(u => u.role === 'admin').length;
+                    if (adminCount <= 1) {
+                        return alert('No puedes quitar el rol de administrador al último administrador. Crea otro admin primero.');
+                    }
+                }
+
                 await UserRepository.update(editingUser.id, userForm);
                 alert('Usuario actualizado correctamente');
             } else {
@@ -98,6 +114,16 @@ const Settings = () => {
     };
 
     const handleDeleteUser = async (id) => {
+        const userToDelete = users.find(u => u.id === id);
+
+        // Prevent last admin deletion
+        if (userToDelete && userToDelete.role === 'admin') {
+            const adminCount = users.filter(u => u.role === 'admin').length;
+            if (adminCount <= 1) {
+                return alert('No puedes eliminar al último administrador.');
+            }
+        }
+
         if (window.confirm('¿Estás seguro de eliminar este usuario?')) {
             try {
                 await UserRepository.delete(id);
@@ -216,24 +242,35 @@ const Settings = () => {
                                     value={settings.businessName}
                                     onChange={(e) => handleChange('businessName', e.target.value)}
                                     placeholder="Mi Tienda POS"
+                                    maxLength={50}
+                                />
+                                <Input
+                                    label="Nombre de la App (Barra Lateral)"
+                                    value={settings.appName}
+                                    onChange={(e) => handleChange('appName', e.target.value)}
+                                    maxLength={15}
+                                    placeholder="Botigest"
                                 />
                                 <Input
                                     label="RUT / ID Fiscal"
                                     value={settings.businessRut}
                                     onChange={(e) => handleChange('businessRut', e.target.value)}
                                     placeholder="76.123.456-K"
+                                    maxLength={15}
                                 />
                                 <Input
                                     label="Dirección"
                                     value={settings.businessAddress}
                                     onChange={(e) => handleChange('businessAddress', e.target.value)}
                                     placeholder="Av. Principal 123"
+                                    maxLength={100}
                                 />
                                 <Input
                                     label="Teléfono"
                                     value={settings.businessPhone}
                                     onChange={(e) => handleChange('businessPhone', e.target.value)}
                                     placeholder="+56 9 1234 5678"
+                                    maxLength={15}
                                 />
                                 <Input
                                     label="Email de Contacto"
@@ -255,41 +292,13 @@ const Settings = () => {
                                     label="Impuesto (%)"
                                     value={settings.taxRate}
                                     onChange={(e) => handleChange('taxRate', e.target.value)}
+                                    maxLength={5}
                                 />
                             </div>
                         </div>
                     </div>
                 );
-            case 'devices':
-                return (
-                    <div className="settings-form">
-                        <div className="form-section">
-                            <h3>Impresoras</h3>
-                            <div className="device-card">
-                                <div className="device-info">
-                                    <Printer size={24} />
-                                    <div>
-                                        <h4>EPSON TM-T20III</h4>
-                                        <p className="text-muted">Impresora de Tickets (USB)</p>
-                                    </div>
-                                </div>
-                                <div className="device-status connected">Conectado</div>
-                                <Button variant="secondary" size="sm">Probar</Button>
-                            </div>
-                            <div className="device-card">
-                                <div className="device-info">
-                                    <Printer size={24} />
-                                    <div>
-                                        <h4>Microsoft Print to PDF</h4>
-                                        <p className="text-muted">Impresora Virtual</p>
-                                    </div>
-                                </div>
-                                <div className="device-status">Disponible</div>
-                                <Button variant="secondary" size="sm">Probar</Button>
-                            </div>
-                        </div>
-                    </div>
-                );
+
             case 'users':
                 return (
                     <div className="settings-form">
@@ -417,6 +426,31 @@ const Settings = () => {
                         </div>
                     </div>
                 );
+            case 'notifications':
+                return (
+                    <div className="settings-form">
+                        <div className="form-section">
+                            <h3>Telegram Configuración</h3>
+                            <p className="text-muted mb-4">
+                                Configura tu bot de Telegram para recibir alertas de stock y tickets (opcional en producción).
+                            </p>
+                            <div className="form-grid">
+                                <Input
+                                    label="Bot Token"
+                                    value={settings.telegramBotToken}
+                                    onChange={(e) => handleChange('telegramBotToken', e.target.value)}
+                                    placeholder="123456789:ABCdefGHI..."
+                                />
+                                <Input
+                                    label="Chat ID"
+                                    value={settings.telegramChatId}
+                                    onChange={(e) => handleChange('telegramChatId', e.target.value)}
+                                    placeholder="-123456789"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                );
             default:
                 return null;
         }
@@ -446,13 +480,7 @@ const Settings = () => {
                         <Store size={20} />
                         <span>General</span>
                     </button>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'devices' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('devices')}
-                    >
-                        <Printer size={20} />
-                        <span>Dispositivos</span>
-                    </button>
+
                     <button
                         className={`settings-nav-item ${activeTab === 'users' ? 'active' : ''}`}
                         onClick={() => setActiveTab('users')}
@@ -466,6 +494,13 @@ const Settings = () => {
                     >
                         <Database size={20} />
                         <span>Respaldo</span>
+                    </button>
+                    <button
+                        className={`settings-nav-item ${activeTab === 'notifications' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('notifications')}
+                    >
+                        <Store size={20} />
+                        <span>Notificaciones</span>
                     </button>
                 </Card>
 

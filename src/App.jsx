@@ -8,6 +8,8 @@ import Customers from './pages/Customers/Customers';
 import Categories from './pages/Categories/Categories';
 import Reports from './pages/Reports/Reports';
 import Settings from './pages/Settings/Settings';
+import CashShifts from './pages/CashShifts/CashShifts';
+import Tickets from './pages/Tickets/Tickets';
 import MainLayout from './layouts/MainLayout';
 import { AuthProvider } from './context/AuthContext';
 import { CashProvider } from './context/CashContext';
@@ -16,6 +18,7 @@ import './App.css';
 
 import { useEffect } from 'react';
 import { initDB } from './services/db';
+import { telegramService } from './services/telegramService';
 
 import { useAuth } from './context/AuthContext';
 
@@ -74,6 +77,13 @@ function App() {
     };
 
     init();
+
+    // Iniciar polling de Telegram
+    telegramService.startPolling();
+
+    return () => {
+      telegramService.stopPolling();
+    };
   }, []);
 
   if (!isInitialized) {
@@ -100,6 +110,8 @@ function App() {
                 <Route path="/categories" element={<AdminRoute><Categories /></AdminRoute>} />
                 <Route path="/reports" element={<AdminRoute><Reports /></AdminRoute>} />
                 <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+                <Route path="/cash-shifts" element={<AdminRoute><CashShifts /></AdminRoute>} />
+                <Route path="/tickets" element={<Tickets />} />
 
                 <Route path="*" element={<Navigate to="/pos" replace />} />
               </Route>

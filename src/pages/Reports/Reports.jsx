@@ -23,6 +23,8 @@ const Reports = () => {
     const [categorySales, setCategorySales] = useState([]);
     const [sellerSales, setSellerSales] = useState([]);
     const [hourlySales, setHourlySales] = useState([]);
+    const [topProducts, setTopProducts] = useState([]);
+    const [profitStats, setProfitStats] = useState({ revenue: 0, cost: 0, profit: 0 });
 
     useEffect(() => {
         loadReportsData();
@@ -36,19 +38,23 @@ const Reports = () => {
                 paymentStats,
                 catSales,
                 sellSales,
-                hourSales
+                hourSales,
+                topProds,
+                profit
             ] = await Promise.all([
-                SaleRepository.getDailyStats(), // Aún obtiene estadísticas de "hoy" para KPIs
+                SaleRepository.getDailyStats(),
                 SaleRepository.getSalesByDateRange(dateRange.start, dateRange.end),
-                SaleRepository.getSalesByPaymentMethod(), // Estadísticas globales
+                SaleRepository.getSalesByPaymentMethod(),
                 SaleRepository.getSalesByCategory(dateRange.start, dateRange.end),
                 SaleRepository.getSalesBySeller(dateRange.start, dateRange.end),
-                SaleRepository.getHourlySales(dateRange.start) // Por hora para la fecha de inicio
+                SaleRepository.getHourlySales(dateRange.start),
+                SaleRepository.getTopSellingProducts(dateRange.start, dateRange.end),
+                SaleRepository.getProfitStats(dateRange.start, dateRange.end)
             ]);
 
             setStats(dailyStats);
 
-            setTransactions(recentSales.map(s => ({
+            setTransactions(recentSales.slice(0, 100).map(s => ({
                 id: s.id,
                 date: new Date(s.created_at).toLocaleString(),
                 customer: s.customer || 'Cliente General',
@@ -60,7 +66,10 @@ const Reports = () => {
             setPaymentMethods(paymentStats);
             setCategorySales(catSales);
             setSellerSales(sellSales);
+
             setHourlySales(hourSales);
+            setTopProducts(topProds);
+            setProfitStats(profit);
 
         } catch (error) {
             console.error("Error loading reports data:", error);
@@ -186,8 +195,21 @@ const Reports = () => {
                         <TrendingUp size={24} />
                     </div>
                     <div className="kpi-content">
-                        <p className="kpi-label">Ticket Promedio</p>
+                        <p className="kpi-label">Promedio boleta</p>
                         <h3 className="kpi-value">${stats.average.toLocaleString()}</h3>
+                    </div>
+                </Card>
+
+                <Card className="kpi-card">
+                    <div className="kpi-icon success">
+                        <TrendingUp size={24} />
+                    </div>
+                    <div className="kpi-content">
+                        <p className="kpi-label">Margen Estimado</p>
+                        <h3 className="kpi-value">${profitStats.profit.toLocaleString()}</h3>
+                        <p className="kpi-trend">
+                            {(profitStats.revenue > 0 ? (profitStats.profit / profitStats.revenue) * 100 : 0).toFixed(1)}% margen
+                        </p>
                     </div>
                 </Card>
             </div>
@@ -195,29 +217,29 @@ const Reports = () => {
             <div className="reports-content">
                 {/* Sección de Gráficos Superiores */}
                 <div className="charts-container">
-                    {/* Ventas por Hora */}
+                    {/* Ventas por Categoría (Ahora Principal) */}
                     <Card className="chart-card main-chart">
                         <div className="card-header">
-                            <h3>Ventas por Hora ({dateRange.start.split('-').reverse().join('/')})</h3>
+                            <h3>Ventas por Categoría</h3>
                         </div>
                         <div className="list-chart">
-                            {cleanedHourlySales.length > 0 ? (
-                                cleanedHourlySales.map((item) => (
-                                    <div key={item.hour} className="list-chart-item">
+                            {categorySales.length > 0 ? (
+                                categorySales.map((cat, index) => (
+                                    <div key={index} className="list-chart-item">
                                         <div className="list-chart-info">
-                                            <span className="list-chart-label">{item.hour}:00</span>
-                                            <span className="list-chart-value">${item.numericTotal.toLocaleString()}</span>
+                                            <span className="list-chart-label">{cat.category || 'Sin Categoría'}</span>
+                                            <span className="list-chart-value">${cat.total.toLocaleString()}</span>
                                         </div>
                                         <div className="progress-bg">
                                             <div
                                                 className="progress-fill"
-                                                style={{ width: `${(item.numericTotal / maxHourlyTotal) * 100}%` }}
+                                                style={{ width: `${(cat.total / (categorySales[0]?.total || 1)) * 100}%` }}
                                             ></div>
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <div className="no-data">No hay datos para este día</div>
+                                <div className="no-data">No hay datos en este rango</div>
                             )}
                         </div>
                     </Card>
@@ -255,27 +277,30 @@ const Reports = () => {
 
                 {/* Sección de Desglose (Categorías y Vendedores) */}
                 <div className="charts-container secondary-charts">
-                    {/* Ventas por Categoría */}
+                    {/* Ventas por Hora (Ahora Secundario) */}
                     <Card className="chart-card">
                         <div className="card-header">
-                            <h3>Ventas por Categoría</h3>
+                            <h3>Ventas por Hora</h3>
                         </div>
                         <div className="list-chart">
-                            {categorySales.map((cat, index) => (
-                                <div key={index} className="list-chart-item">
-                                    <div className="list-chart-info">
-                                        <span className="list-chart-label">{cat.category || 'Sin Categoría'}</span>
-                                        <span className="list-chart-value">${cat.total.toLocaleString()}</span>
+                            {cleanedHourlySales.length > 0 ? (
+                                cleanedHourlySales.map((item) => (
+                                    <div key={item.hour} className="list-chart-item">
+                                        <div className="list-chart-info">
+                                            <span className="list-chart-label">{item.hour}:00</span>
+                                            <span className="list-chart-value">${item.numericTotal.toLocaleString()}</span>
+                                        </div>
+                                        <div className="progress-bg">
+                                            <div
+                                                className="progress-fill"
+                                                style={{ width: `${(item.numericTotal / maxHourlyTotal) * 100}%` }}
+                                            ></div>
+                                        </div>
                                     </div>
-                                    <div className="progress-bg">
-                                        <div
-                                            className="progress-fill"
-                                            style={{ width: `${(cat.total / (categorySales[0]?.total || 1)) * 100}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            ))}
-                            {categorySales.length === 0 && <div className="no-data">No hay datos en este rango</div>}
+                                ))
+                            ) : (
+                                <div className="no-data">No hay datos para este día</div>
+                            )}
                         </div>
                     </Card>
 
@@ -284,28 +309,52 @@ const Reports = () => {
                         <div className="card-header">
                             <h3>Rendimiento Vendedores</h3>
                         </div>
-                        <div className="table-container small-table">
-                            <table className="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Vendedor</th>
-                                        <th>Ventas</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sellerSales.map((seller, index) => (
-                                        <tr key={index}>
-                                            <td>{seller.username || 'Desconocido'}</td>
-                                            <td>{seller.count}</td>
-                                            <td>${seller.total.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                    {sellerSales.length === 0 && (
-                                        <tr><td colSpan="3" className="text-center text-muted">No hay datos</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
+                        <div className="list-chart">
+                            {sellerSales.length > 0 ? (
+                                sellerSales.map((seller, index) => (
+                                    <div key={index} className="list-chart-item">
+                                        <div className="list-chart-info">
+                                            <span className="list-chart-label">{seller.username || 'Desconocido'} ({seller.count})</span>
+                                            <span className="list-chart-value">${seller.total.toLocaleString()}</span>
+                                        </div>
+                                        <div className="progress-bg">
+                                            <div
+                                                className="progress-fill"
+                                                style={{ width: `${(seller.total / (sellerSales[0]?.total || 1)) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="no-data">No hay datos</div>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Top 5 Productos */}
+                    <Card className="chart-card">
+                        <div className="card-header">
+                            <h3>Top 5 Productos</h3>
+                        </div>
+                        <div className="list-chart">
+                            {topProducts.length > 0 ? (
+                                topProducts.map((prod, index) => (
+                                    <div key={index} className="list-chart-item">
+                                        <div className="list-chart-info">
+                                            <span className="list-chart-label">{prod.name} ({prod.count})</span>
+                                            <span className="list-chart-value">${prod.total.toLocaleString()}</span>
+                                        </div>
+                                        <div className="progress-bg">
+                                            <div
+                                                className="progress-fill"
+                                                style={{ width: `${(prod.total / (topProducts[0]?.total || 1)) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="no-data">No hay datos</div>
+                            )}
                         </div>
                     </Card>
                 </div>
@@ -355,7 +404,7 @@ const Reports = () => {
                     </div>
                 </Card>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -10,24 +10,20 @@ export const CashShiftRepository = {
         return result.lastInsertId;
     },
 
-    getCurrentOpenShift: async (userId) => {
-        // Si se proporciona userId, verificar el turno abierto de ese usuario (modo estricto opcional)
-        // O verificar cualquier turno abierto si queremos lógica de terminal única
-        // Por ahora, ¿asumimos un turno abierto por usuario o para todo el sistema? 
-        // Vamos con todo el sistema para un POS simple, o por usuario. 
-        // Dados los requisitos, verifiquemos si *este* usuario tiene un turno abierto.
-        const query = `SELECT * FROM cash_shifts WHERE user_id = ? AND status = 'open' ORDER BY start_time DESC LIMIT 1`;
-        const result = await selectQuery(query, [userId]);
+    getCurrentOpenShift: async () => {
+        // Global Shift Mode: Check for ANY open shift regardless of user
+        const query = `SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY start_time DESC LIMIT 1`;
+        const result = await selectQuery(query, []);
         return result[0];
     },
 
-    close: async (id, endAmount, expectedAmount, notes) => {
+    close: async (id, endAmount, expectedAmount, notes, closedUserId) => {
         const query = `
             UPDATE cash_shifts 
-            SET end_amount = ?, expected_amount = ?, status = 'closed', end_time = CURRENT_TIMESTAMP, notes = ?
+            SET end_amount = ?, expected_amount = ?, status = 'closed', end_time = CURRENT_TIMESTAMP, notes = ?, closed_by_user_id = ?
             WHERE id = ?
         `;
-        return await executeQuery(query, [endAmount, expectedAmount, notes, id]);
+        return await executeQuery(query, [endAmount, expectedAmount, notes, closedUserId, id]);
     },
 
     getShiftSalesTotal: async (shiftId) => {
@@ -41,5 +37,23 @@ export const CashShiftRepository = {
         `;
         const result = await selectQuery(query, [shiftId]);
         return result[0];
+    },
+
+    getAll: async (startDate, endDate) => {
+        const start = startDate || new Date().toISOString().split('T')[0];
+        const end = endDate || start;
+
+        const query = `
+            SELECT 
+                cs.*,
+                u_open.username as opened_by_username,
+                u_close.username as closed_by_username
+            FROM cash_shifts cs
+            LEFT JOIN users u_open ON cs.user_id = u_open.id
+            LEFT JOIN users u_close ON cs.closed_by_user_id = u_close.id
+            WHERE date(cs.start_time) BETWEEN ? AND ?
+            ORDER BY cs.start_time DESC
+        `;
+        return await selectQuery(query, [start, end]);
     }
 };

@@ -107,7 +107,6 @@ const Customers = () => {
                             <tr>
                                 <th>Cliente</th>
                                 <th>Contacto</th>
-                                <th>Puntos</th>
                                 <th>Última Visita</th>
                                 <th>Total Gastado</th>
                                 <th>Acciones</th>
@@ -144,12 +143,6 @@ const Customers = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <div className="points-badge">
-                                            <Star size={14} className="star-icon" />
-                                            <span>{customer.points || 0} pts</span>
-                                        </div>
-                                    </td>
-                                    <td>
                                         {customer.last_visit
                                             ? new Date(customer.last_visit).toLocaleDateString('es-ES')
                                             : '-'}
@@ -179,7 +172,7 @@ const Customers = () => {
                             ))}
                             {filteredCustomers.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-8 text-muted">
+                                    <td colSpan="5" className="text-center py-8 text-muted">
                                         No se encontraron clientes
                                     </td>
                                 </tr>

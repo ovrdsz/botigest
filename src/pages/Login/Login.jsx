@@ -63,6 +63,7 @@ const Login = () => {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
+                            maxLength={50}
                         />
                     </div>
                     <div className="form-group">
@@ -73,6 +74,7 @@ const Login = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            maxLength={50}
                         />
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>

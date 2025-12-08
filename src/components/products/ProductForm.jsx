@@ -71,11 +71,27 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Manual validation
+        const price = Number(formData.price || 0);
+        const cost = Number(formData.cost || 0);
+        const stock = Number(formData.stock || 0);
+
+        if (price < 0 || cost < 0 || stock < 0) {
+            alert('Los valores numéricos no pueden ser negativos.');
+            return;
+        }
+
+        if (price > 100000000 || cost > 100000000 || stock > 1000000) {
+            alert('Valores numéricos exceden el límite permitido.');
+            return;
+        }
+
         onSubmit({
             ...formData,
-            price: Number(formData.price),
-            cost: Number(formData.cost),
-            stock: Number(formData.stock),
+            price,
+            cost,
+            stock,
             category_id: formData.category_id ? Number(formData.category_id) : null
         });
     };
@@ -91,6 +107,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         onChange={handleChange}
                         required
                         placeholder="Ej: PROD-001"
+                        maxLength={20}
                     />
                 </div>
 
@@ -140,6 +157,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                     onChange={handleChange}
                     required
                     placeholder="Nombre del producto"
+                    maxLength={80}
                 />
             </div>
 
@@ -170,6 +188,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         onChange={handleChange}
                         required
                         min="0"
+                        max="99999999"
                     />
                 </div>
                 <div className="form-group">
@@ -180,6 +199,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         value={formData.cost}
                         onChange={handleChange}
                         min="0"
+                        max="99999999"
                     />
                 </div>
             </div>
@@ -194,6 +214,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         onChange={handleChange}
                         required
                         min="0"
+                        max="1000000"
                     />
                 </div>
             </div>
@@ -206,6 +227,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                     onChange={handleChange}
                     className="form-textarea"
                     rows="3"
+                    maxLength={250}
                 />
             </div>
 
