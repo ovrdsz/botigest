@@ -6,6 +6,7 @@ import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import CustomerForm from '../../components/customers/CustomerForm';
 import { CustomerRepository } from '../../repositories/customerRepository';
+import { ask } from '@tauri-apps/plugin-dialog';
 import './Customers.css';
 
 const Customers = () => {
@@ -47,7 +48,14 @@ const Customers = () => {
     };
 
     const handleDeleteClick = async (id) => {
-        if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
+        const confirmed = await ask('¿Estás seguro de eliminar este cliente?', {
+            title: 'Confirmar eliminación',
+            kind: 'warning',
+            okLabel: 'Eliminar',
+            cancelLabel: 'Cancelar'
+        });
+
+        if (confirmed) {
             try {
                 await CustomerRepository.delete(id);
                 loadCustomers();

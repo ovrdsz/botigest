@@ -1,3 +1,4 @@
+/* Existing styles */
 .input-group {
     position: relative;
     margin-bottom: 1.5rem;
@@ -44,4 +45,34 @@
     background: var(--bg-primary);
     /* Match background to hide line */
     border-radius: 4px;
+}
+
+/* Prefix support */
+.input-group.has-prefix .input-field {
+    padding-left: 4.5rem;
+    /* Increased to avoid overlap */
+}
+
+.input-prefix {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-primary);
+    pointer-events: none;
+    font-size: 1rem;
+    z-index: 1;
+}
+
+.input-group.has-prefix .input-label {
+    left: 1rem;
+    /* Initial position */
+}
+
+/* Move label when floating and has prefix */
+.input-group.has-prefix .input-field:focus~.input-label,
+.input-group.has-prefix .input-field:not(:placeholder-shown)~.input-label,
+.input-group.has-prefix.has-placeholder .input-label {
+    left: 0.8rem;
+    /* Standard floating position */
 }

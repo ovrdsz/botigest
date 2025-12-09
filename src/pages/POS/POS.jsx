@@ -5,7 +5,7 @@ import { CustomerRepository } from '../../repositories/customerRepository';
 import { useAuth } from '../../context/AuthContext';
 import { useCash } from '../../context/CashContext';
 import Ticket from '../../components/pos/Ticket';
-import { Search, Trash2, Plus, Minus, CreditCard, Banknote, ShoppingCart, User, X, Lock, Image as ImageIcon } from 'lucide-react';
+import { Search, Trash2, Plus, Minus, CreditCard, Banknote, ShoppingCart, User, X, Lock, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -14,6 +14,8 @@ import './POS.css';
 
 import { SettingsRepository } from '../../repositories/settingsRepository';
 import { telegramService } from '../../services/telegramService';
+
+const ITEMS_PER_PAGE = 6;
 
 const POS = () => {
     const [cart, setCart] = useState([]);
@@ -39,6 +41,10 @@ const POS = () => {
     const [endAmount, setEndAmount] = useState('');
     const [closeNotes, setCloseNotes] = useState('');
     const [shiftTotals, setShiftTotals] = useState(null);
+    const [hasWarnedMismatch, setHasWarnedMismatch] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         loadData();
@@ -151,9 +157,23 @@ const POS = () => {
         }
     };
 
+    const formatCurrency = (value) => {
+        if (!value) return '';
+        // Remove everything that is not a digit
+        const clean = value.replace(/\D/g, '');
+        // Format with thousands separator (dot)
+        return clean.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    };
+
+    const parseFormattedCurrency = (value) => {
+        if (!value || value.trim() === '') return NaN;
+        // Remove dots for parsing
+        return parseInt(value.replace(/\./g, ''), 10);
+    };
+
     const handleOpenShift = async (e) => {
         e.preventDefault();
-        const amount = parseFloat(startAmount);
+        const amount = parseFormattedCurrency(startAmount);
         if (isNaN(amount) || amount < 0) {
             alert('Ingrese un monto válido y positivo');
             return;
@@ -179,6 +199,7 @@ const POS = () => {
                 cashSales: details.cash_sales || 0,
                 expectedTotal: details.start_amount + (details.cash_sales || 0)
             });
+            setHasWarnedMismatch(false);
             setShowCloseShiftModal(true);
         } else {
             alert('Error obteniendo detalles del turno');
@@ -187,7 +208,7 @@ const POS = () => {
 
     const handleCloseShift = async (e) => {
         e.preventDefault();
-        const amount = parseFloat(endAmount);
+        const amount = parseFormattedCurrency(endAmount);
         if (isNaN(amount) || amount < 0) {
             alert('Ingrese un monto válido y positivo');
             return;
@@ -202,9 +223,17 @@ const POS = () => {
         const expected = shiftTotals?.expectedTotal || 0;
         const difference = amount - expected;
 
-        if (Math.abs(difference) > 0 && !closeNotes.trim()) {
-            alert(`El monto no cuadra (Diferencia: $${difference.toLocaleString()}). Debe ingresar una nota justificando la diferencia.`);
-            return;
+        if (Math.abs(difference) > 0) {
+            if (!closeNotes.trim()) {
+                alert(`El monto no cuadra (Diferencia: $${difference.toLocaleString()}). Debe ingresar una nota justificando la diferencia.`);
+                return;
+            }
+
+            if (!hasWarnedMismatch) {
+                alert(`ADVERTENCIA: El monto ingresado no coincide con el esperado (Diferencia: $${difference.toLocaleString()}). Si está seguro de que el monto es correcto, presione "Cerrar Caja" nuevamente para confirmar.`);
+                setHasWarnedMismatch(true);
+                return;
+            }
         }
 
         const result = await closeShift(amount, expected, closeNotes);
@@ -275,6 +304,7 @@ const POS = () => {
     const handleSearch = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
+        setCurrentPage(1); // Reset to first page on search
 
         // Simular escáner: si hay coincidencia exacta de código, agregar inmediatamente
         const exactMatch = products.find(p => p.code === query);
@@ -289,6 +319,21 @@ const POS = () => {
             p.code.toLowerCase().includes(searchQuery.toLowerCase())) &&
         p.stock > 0
     );
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+    const displayedProducts = filteredProducts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const handlePrevPage = () => {
+        setCurrentPage(prev => Math.max(prev - 1, 1));
+    };
+
+    const handleNextPage = () => {
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    };
 
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
@@ -314,14 +359,12 @@ const POS = () => {
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-1">Monto Inicial</label>
                             <Input
-                                type="number"
+                                type="text"
                                 value={startAmount}
-                                onChange={(e) => setStartAmount(e.target.value)}
-                                placeholder="0.00"
+                                onChange={(e) => setStartAmount(formatCurrency(e.target.value))}
+                                placeholder="0"
                                 autoFocus
                                 required
-                                min="0"
-                                max="100000000"
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -359,14 +402,15 @@ const POS = () => {
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-1">Efectivo en Caja (Real)</label>
                             <Input
-                                type="number"
+                                type="text"
                                 value={endAmount}
-                                onChange={(e) => setEndAmount(e.target.value)}
-                                placeholder="0.00"
+                                onChange={(e) => {
+                                    setEndAmount(formatCurrency(e.target.value));
+                                    setHasWarnedMismatch(false);
+                                }}
+                                placeholder="0"
                                 autoFocus
                                 required
-                                min="0"
-                                max="100000000"
                             />
                         </div>
                         <div className="mb-4">
@@ -416,22 +460,13 @@ const POS = () => {
                 </div>
 
                 <div className="products-grid">
-                    {filteredProducts.map(product => (
+                    {displayedProducts.map(product => (
                         <Card
                             key={product.id}
                             className={`product-card ${product.stock <= 0 ? 'out-of-stock' : ''}`}
                             onClick={() => product.stock > 0 && addToCart(product)}
                         >
-                            <div className="product-image-container" style={{
-                                height: '120px',
-                                width: '100%',
-                                background: 'var(--bg-secondary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                overflow: 'hidden',
-                                borderBottom: '1px solid var(--border-color)'
-                            }}>
+                            <div className="product-image-container">
                                 {product.image_url ? (
                                     <img
                                         src={convertFileSrc(product.image_url)}
@@ -455,6 +490,33 @@ const POS = () => {
                         </Card>
                     ))}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="pagination-controls">
+                        <Button
+                            variant="secondary"
+                            onClick={handlePrevPage}
+                            disabled={currentPage === 1}
+                            className="pagination-btn"
+                        >
+                            <ChevronLeft size={20} />
+                            Anterior
+                        </Button>
+                        <span className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <Button
+                            variant="secondary"
+                            onClick={handleNextPage}
+                            disabled={currentPage === totalPages}
+                            className="pagination-btn"
+                        >
+                            Siguiente
+                            <ChevronRight size={20} />
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Panel Derecho: Ticket/Carrito */}
@@ -472,7 +534,6 @@ const POS = () => {
                                     <User size={16} className="text-primary" />
                                     <div>
                                         <p className="font-medium">{selectedCustomer.name}</p>
-                                        <p className="text-xs text-muted">Puntos: {selectedCustomer.points}</p>
                                     </div>
                                 </div>
                                 <button

@@ -13,16 +13,22 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
 
     useEffect(() => {
         if (initialData) {
-            setFormData(initialData);
+            // Strip +569 or +56 9 if present to show only the 8 digits
+            let phone = initialData.phone || '';
+            phone = phone.replace(/^\+56\s*9\s*/, '');
+            setFormData({
+                ...initialData,
+                phone
+            });
         }
     }, [initialData]);
 
     const handleChange = (e) => {
         let { name, value } = e.target;
 
-        // Strict: Phone only digits and +
+        // Strict: Phone only digits
         if (name === 'phone') {
-            value = value.replace(/[^0-9+]/g, '');
+            value = value.replace(/[^0-9]/g, '');
         }
 
         setFormData(prev => ({
@@ -34,8 +40,16 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // Basic validation for phone length
+        if (formData.phone.length !== 8) {
+            // You might want to show a toast or error state here
+            // distinct from the HTML5 validation (which we'll use minLength for)
+            return;
+        }
+
         onSubmit({
             ...formData,
+            phone: `+569${formData.phone}`
         });
     };
 
@@ -71,8 +85,10 @@ const CustomerForm = ({ onSubmit, onCancel, initialData }) => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="+56 9 1234 5678"
-                    maxLength={15}
+                    placeholder="1234 5678"
+                    prefix="+56 9 "
+                    minLength={8}
+                    maxLength={8}
                 />
             </div>
 

@@ -94,5 +94,10 @@ export const ProductRepository = {
         const query = `SELECT COUNT(*) as count FROM products WHERE stock <= ?`;
         const result = await selectQuery(query, [threshold]);
         return result[0].count;
+    },
+
+    getLowStockItems: async (threshold = 10) => {
+        const query = `SELECT * FROM products WHERE stock <= ? ORDER BY stock ASC`;
+        return await selectQuery(query, [threshold]);
     }
 };

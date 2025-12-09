@@ -22,7 +22,7 @@ const Reports = () => {
     const [paymentMethods, setPaymentMethods] = useState([]);
     const [categorySales, setCategorySales] = useState([]);
     const [sellerSales, setSellerSales] = useState([]);
-    const [hourlySales, setHourlySales] = useState([]);
+
     const [topProducts, setTopProducts] = useState([]);
     const [profitStats, setProfitStats] = useState({ revenue: 0, cost: 0, profit: 0 });
 
@@ -38,7 +38,6 @@ const Reports = () => {
                 paymentStats,
                 catSales,
                 sellSales,
-                hourSales,
                 topProds,
                 profit
             ] = await Promise.all([
@@ -47,7 +46,6 @@ const Reports = () => {
                 SaleRepository.getSalesByPaymentMethod(),
                 SaleRepository.getSalesByCategory(dateRange.start, dateRange.end),
                 SaleRepository.getSalesBySeller(dateRange.start, dateRange.end),
-                SaleRepository.getHourlySales(dateRange.start),
                 SaleRepository.getTopSellingProducts(dateRange.start, dateRange.end),
                 SaleRepository.getProfitStats(dateRange.start, dateRange.end)
             ]);
@@ -67,7 +65,6 @@ const Reports = () => {
             setCategorySales(catSales);
             setSellerSales(sellSales);
 
-            setHourlySales(hourSales);
             setTopProducts(topProds);
             setProfitStats(profit);
 
@@ -106,28 +103,6 @@ const Reports = () => {
         const { name, value } = e.target;
         setDateRange(prev => ({ ...prev, [name]: value }));
     };
-
-    // Limpiar y parsear datos de ventas por hora
-    const cleanedHourlySales = hourlySales.map(h => {
-        // Eliminar caracteres no numéricos excepto punto y menos (si los hay)
-        // Esto maneja casos como "$250,000" o "250.000" dependiendo de la configuración regional
-        // Asumiendo que la DB retorna un número o una representación en string de un número
-        let val = h.total;
-        if (typeof val === 'string') {
-            // Eliminar símbolos de moneda y comas (asumiendo punto como separador decimal o entero simple)
-            // Si el formato es 1.000,00 (Europeo), este reemplazo simple podría ser riesgoso, 
-            // pero SQLite usualmente retorna números estándar. 
-            // Intentemos parsearlo de forma segura.
-            val = parseFloat(val);
-        }
-        return {
-            ...h,
-            numericTotal: isNaN(val) ? 0 : val
-        };
-    });
-
-    // Calcular valor máximo para escala de gráficos
-    const maxHourlyTotal = Math.max(...cleanedHourlySales.map(h => h.numericTotal), 1);
 
     // Calcular ángulos para gráfico de dona
     const cashCount = paymentMethods.find(p => p.payment_method === 'cash')?.count || 0;
@@ -277,32 +252,7 @@ const Reports = () => {
 
                 {/* Sección de Desglose (Categorías y Vendedores) */}
                 <div className="charts-container secondary-charts">
-                    {/* Ventas por Hora (Ahora Secundario) */}
-                    <Card className="chart-card">
-                        <div className="card-header">
-                            <h3>Ventas por Hora</h3>
-                        </div>
-                        <div className="list-chart">
-                            {cleanedHourlySales.length > 0 ? (
-                                cleanedHourlySales.map((item) => (
-                                    <div key={item.hour} className="list-chart-item">
-                                        <div className="list-chart-info">
-                                            <span className="list-chart-label">{item.hour}:00</span>
-                                            <span className="list-chart-value">${item.numericTotal.toLocaleString()}</span>
-                                        </div>
-                                        <div className="progress-bg">
-                                            <div
-                                                className="progress-fill"
-                                                style={{ width: `${(item.numericTotal / maxHourlyTotal) * 100}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="no-data">No hay datos para este día</div>
-                            )}
-                        </div>
-                    </Card>
+
 
                     {/* Ventas por Vendedor */}
                     <Card className="chart-card">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CategoryRepository } from '../../repositories/categoryRepository';
 import { open } from '@tauri-apps/plugin-dialog';
+import { stat } from '@tauri-apps/plugin-fs';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -41,7 +42,21 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
     };
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        let { name, value } = e.target;
+
+        // Validation for code: alphanumeric only
+        if (name === 'code') {
+            const alphanumericRegex = /^[a-zA-Z0-9-]*$/; // Allowing hyphens as they are common in codes
+            if (!alphanumericRegex.test(value)) {
+                return;
+            }
+            // Prevent multiple hyphens
+            if ((value.match(/-/g) || []).length > 1) {
+                return;
+            }
+            value = value.toUpperCase();
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -54,15 +69,33 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                 multiple: false,
                 filters: [{
                     name: 'Images',
-                    extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif']
+                    extensions: ['png', 'jpg', 'jpeg']
                 }]
             });
 
             if (file) {
-                setFormData(prev => ({
-                    ...prev,
-                    image_url: file
-                }));
+                // Validación de peso (10MB)
+                try {
+                    const fileStat = await stat(file);
+                    const MAX_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+
+                    if (fileStat.size > MAX_SIZE) {
+                        alert('El archivo supera el tamaño máximo permitido de 10MB.');
+                        return;
+                    }
+
+                    setFormData(prev => ({
+                        ...prev,
+                        image_url: file
+                    }));
+                } catch (statError) {
+                    console.error('Error checking file size:', statError);
+                    // Si falla el stat, permitimos la selección pero advertimos en consola
+                    setFormData(prev => ({
+                        ...prev,
+                        image_url: file
+                    }));
+                }
             }
         } catch (error) {
             console.error('Error selecting image:', error);
@@ -149,36 +182,39 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                 </div>
             </div>
 
-            <div className="form-group">
-                <label>Nombre</label>
-                <Input
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="Nombre del producto"
-                    maxLength={80}
-                />
+            {/* Name and Category Row */}
+            <div className="form-row" style={{ gridTemplateColumns: '1fr 2fr' }}>
+                <div className="form-group">
+                    <label>Nombre</label>
+                    <Input
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        placeholder="Nombre del producto"
+                        maxLength={80}
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Categoría</label>
+                    <select
+                        name="category_id"
+                        value={formData.category_id}
+                        onChange={handleChange}
+                        className="form-select"
+                    >
+                        <option value="">Seleccionar...</option>
+                        {categories.map(cat => (
+                            <option key={cat.id} value={cat.id}>
+                                {cat.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
-            <div className="form-group">
-                <label>Categoría</label>
-                <select
-                    name="category_id"
-                    value={formData.category_id}
-                    onChange={handleChange}
-                    className="form-select"
-                >
-                    <option value="">Seleccionar Categoría</option>
-                    {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                        </option>
-                    ))}
-                </select>
-            </div>
-
-            <div className="form-row">
+            {/* Pricing and Stock Row - 3 Columns */}
+            <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                 <div className="form-group">
                     <label>Precio Venta</label>
                     <Input
@@ -189,6 +225,7 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         required
                         min="0"
                         max="99999999"
+                        placeholder="0"
                     />
                 </div>
                 <div className="form-group">
@@ -200,11 +237,9 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         onChange={handleChange}
                         min="0"
                         max="99999999"
+                        placeholder="0"
                     />
                 </div>
-            </div>
-
-            <div className="form-row">
                 <div className="form-group">
                     <label>Stock Inicial</label>
                     <Input
@@ -215,19 +250,22 @@ const ProductForm = ({ onSubmit, onCancel, initialData = null }) => {
                         required
                         min="0"
                         max="1000000"
+                        placeholder="0"
                     />
                 </div>
             </div>
 
-            <div className="form-group">
+            {/* Description Row */}
+            <div className="form-group" style={{ width: '100%' }}>
                 <label>Descripción</label>
                 <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleChange}
                     className="form-textarea"
-                    rows="3"
+                    rows="4"
                     maxLength={250}
+                    style={{ minHeight: '120px' }}
                 />
             </div>
 

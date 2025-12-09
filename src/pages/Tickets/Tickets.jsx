@@ -3,11 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import { TicketRepository } from '../../repositories/ticketRepository';
 import { ProductRepository } from '../../repositories/productRepository';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { Plus, Check, X, Image as ImageIcon, FileText, Package, AlertCircle } from 'lucide-react';
+import { Plus, Check, X, FileText, Package, AlertCircle } from 'lucide-react';
 import './Tickets.css';
 import { telegramService } from '../../services/telegramService';
 
@@ -27,8 +26,7 @@ const Tickets = () => {
         type: null,
         title: '',
         description: '',
-        payload: {},
-        attachment_path: null
+        payload: {}
     });
 
     useEffect(() => {
@@ -58,22 +56,7 @@ const Tickets = () => {
         }
     };
 
-    const handleFileSelect = async () => {
-        try {
-            const selected = await open({
-                multiple: false,
-                filters: [{
-                    name: 'Image',
-                    extensions: ['png', 'jpg', 'jpeg', 'webp']
-                }]
-            });
-            if (selected) {
-                setTicketForm(prev => ({ ...prev, attachment_path: selected }));
-            }
-        } catch (error) {
-            console.error('Error selecting file:', error);
-        }
-    };
+
 
     const handleCreateSubmit = async (e) => {
         e.preventDefault();
@@ -131,7 +114,7 @@ const Tickets = () => {
                 type: ticketForm.type,
                 title: ticketForm.title,
                 observacion: ticketForm.description,
-                requiereAprobacion: ticketForm.type !== 'observation',
+                requiereAprobacion: true,
                 payload: notificationPayload
             });
             setShowCreateModal(false);
@@ -139,8 +122,7 @@ const Tickets = () => {
                 type: null,
                 title: '',
                 description: '',
-                payload: {},
-                attachment_path: null
+                payload: {}
             });
             loadData();
             alert('Ticket creado correctamente');
@@ -541,20 +523,7 @@ const Tickets = () => {
                                     />
                                 </div>
 
-                                <div className="ticket-form-group">
-                                    <label className="ticket-form-label">Evidencia (Imagen)</label>
-                                    <div
-                                        className={`upload-zone ${ticketForm.attachment_path ? 'has-file' : ''}`}
-                                        onClick={handleFileSelect}
-                                    >
-                                        <ImageIcon size={32} className="text-muted mb-2" />
-                                        <p className="text-sm text-muted text-center">
-                                            {ticketForm.attachment_path
-                                                ? <span className="text-green-400 font-medium">¡Imagen seleccionada!</span>
-                                                : "Arrastra tu imagen aquí o haz clic para seleccionar"}
-                                        </p>
-                                    </div>
-                                </div>
+
 
                                 <div className="modal-actions">
                                     <Button type="button" variant="secondary" onClick={() => setShowCreateModal(false)}>Cancelar</Button>

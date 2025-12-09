@@ -13,6 +13,7 @@ import { save, open, ask } from '@tauri-apps/plugin-dialog';
 import { copyFile, readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { appLocalDataDir, join } from '@tauri-apps/api/path';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
+import { validateRut, formatRut, validateEmail } from '../../utils/validation';
 
 const Settings = () => {
     const [activeTab, setActiveTab] = useState('general');
@@ -45,6 +46,10 @@ const Settings = () => {
         try {
             const loadedSettings = await SettingsRepository.getAll();
             if (Object.keys(loadedSettings).length > 0) {
+                // Strip prefix for display
+                if (loadedSettings.businessPhone) {
+                    loadedSettings.businessPhone = loadedSettings.businessPhone.replace(/^\+56\s*9\s*/, '');
+                }
                 setSettings(prev => ({ ...prev, ...loadedSettings }));
             }
         } catch (error) {
@@ -55,8 +60,29 @@ const Settings = () => {
     };
 
     const handleSave = async () => {
+        // Validation
+        if (!settings.businessName.trim()) return alert('El nombre del negocio es obligatorio');
+        if (!settings.appName.trim()) return alert('El nombre de la App es obligatorio');
+
+        if (!settings.businessRut.trim()) return alert('El RUT es obligatorio');
+        if (!validateRut(settings.businessRut)) return alert('El RUT ingresado no es válido');
+
+        if (!settings.businessAddress.trim()) return alert('La dirección es obligatoria');
+
+        if (!settings.businessEmail.trim()) return alert('El email es obligatorio');
+        if (!validateEmail(settings.businessEmail)) return alert('El email ingresado no es válido');
+
+        if (settings.businessPhone.length !== 8) {
+            return alert('El teléfono debe tener 8 dígitos');
+        }
+
         try {
-            await SettingsRepository.setMany(settings);
+            const settingsToSave = {
+                ...settings,
+                businessPhone: `+569${settings.businessPhone}`
+            };
+
+            await SettingsRepository.setMany(settingsToSave);
             window.dispatchEvent(new CustomEvent('app-settings-changed'));
             alert('Configuración guardada correctamente');
         } catch (error) {
@@ -67,9 +93,16 @@ const Settings = () => {
 
     const handleChange = (key, value) => {
         if (key === 'businessPhone') {
-            value = value.replace(/[^0-9+]/g, '');
+            value = value.replace(/[^0-9]/g, '');
         }
         setSettings(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleBlur = (key) => {
+        if (key === 'businessRut') {
+            const formatted = formatRut(settings.businessRut);
+            setSettings(prev => ({ ...prev, businessRut: formatted }));
+        }
     };
 
     // Funciones de Gestión de Usuarios
@@ -191,7 +224,9 @@ const Settings = () => {
                 kind: 'warning'
             });
 
-            if (!confirmed) return;
+            if (!confirmed) {
+                return;
+            }
 
             const filePath = await open({
                 multiple: false,
@@ -201,7 +236,9 @@ const Settings = () => {
                 }]
             });
 
-            if (!filePath) return;
+            if (!filePath) {
+                return;
+            }
 
             alert('Preparando restauración...');
 
@@ -215,8 +252,18 @@ const Settings = () => {
             const backupContent = await readFile(filePath);
             await writeFile(pendingPath, backupContent);
 
-            alert('Restauración preparada. La aplicación se cerrará ahora.\n\nPOR FAVOR, VUELVE A ABRIR LA APLICACIÓN MANUALMENTE para aplicar los cambios.');
-            await exit(0);
+            alert('Restauración preparada. La aplicación se reiniciará automáticamente para aplicar los cambios.');
+
+            // Give a moment for the alert to close (though alert is blocking in some contexts, it's safer)
+            setTimeout(async () => {
+                try {
+                    await relaunch();
+                } catch (error) {
+                    console.error('Relaunch failed, attempting exit:', error);
+                    await exit(0);
+                }
+            }, 500);
+
         } catch (error) {
             console.error('Error restoring backup:', error);
             alert('Error al preparar la restauración: ' + error.message);
@@ -243,6 +290,7 @@ const Settings = () => {
                                     onChange={(e) => handleChange('businessName', e.target.value)}
                                     placeholder="Mi Tienda POS"
                                     maxLength={50}
+                                    required
                                 />
                                 <Input
                                     label="Nombre de la App (Barra Lateral)"
@@ -250,13 +298,16 @@ const Settings = () => {
                                     onChange={(e) => handleChange('appName', e.target.value)}
                                     maxLength={15}
                                     placeholder="Botigest"
+                                    required
                                 />
                                 <Input
                                     label="RUT / ID Fiscal"
                                     value={settings.businessRut}
                                     onChange={(e) => handleChange('businessRut', e.target.value)}
+                                    onBlur={() => handleBlur('businessRut')}
                                     placeholder="76.123.456-K"
                                     maxLength={15}
+                                    required
                                 />
                                 <Input
                                     label="Dirección"
@@ -264,35 +315,25 @@ const Settings = () => {
                                     onChange={(e) => handleChange('businessAddress', e.target.value)}
                                     placeholder="Av. Principal 123"
                                     maxLength={100}
+                                    required
                                 />
                                 <Input
                                     label="Teléfono"
                                     value={settings.businessPhone}
                                     onChange={(e) => handleChange('businessPhone', e.target.value)}
-                                    placeholder="+56 9 1234 5678"
-                                    maxLength={15}
+                                    placeholder="1234 5678"
+                                    prefix="+56 9 "
+                                    minLength={8}
+                                    maxLength={8}
+                                    required
                                 />
                                 <Input
                                     label="Email de Contacto"
                                     value={settings.businessEmail}
                                     onChange={(e) => handleChange('businessEmail', e.target.value)}
                                     placeholder="contacto@mitienda.cl"
-                                />
-                            </div>
-                        </div>
-                        <div className="form-section">
-                            <h3>Configuración Regional</h3>
-                            <div className="form-grid">
-                                <Input
-                                    label="Moneda"
-                                    value={settings.currency}
-                                    onChange={(e) => handleChange('currency', e.target.value)}
-                                />
-                                <Input
-                                    label="Impuesto (%)"
-                                    value={settings.taxRate}
-                                    onChange={(e) => handleChange('taxRate', e.target.value)}
-                                    maxLength={5}
+                                    type="email"
+                                    required
                                 />
                             </div>
                         </div>
@@ -432,7 +473,7 @@ const Settings = () => {
                         <div className="form-section">
                             <h3>Telegram Configuración</h3>
                             <p className="text-muted mb-4">
-                                Configura tu bot de Telegram para recibir alertas de stock y tickets (opcional en producción).
+                                Configura tu bot de Telegram para recibir alertas de stock y tickets.
                             </p>
                             <div className="form-grid">
                                 <Input

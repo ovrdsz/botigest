@@ -201,14 +201,14 @@ export const SaleRepository = {
     const start = startDate || new Date().toISOString().split('T')[0];
     const end = endDate || start;
     const query = `
-      SELECT p.name, SUM(si.quantity) as count, SUM(si.subtotal) as total
+      SELECT p.name, p.image_url, SUM(si.quantity) as count, SUM(si.subtotal) as total
       FROM sale_items si
       JOIN products p ON si.product_id = p.id
       JOIN sales s ON si.sale_id = s.id
       WHERE date(s.created_at) BETWEEN ? AND ?
       GROUP BY p.name
       ORDER BY count DESC
-      LIMIT 5
+      LIMIT 3
     `;
     return await selectQuery(query, [start, end]);
   },

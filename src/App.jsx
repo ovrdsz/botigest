@@ -41,6 +41,7 @@ function App() {
         const { exists, rename, remove } = await import('@tauri-apps/plugin-fs');
 
         const roamingDir = await appDataDir();
+
         const pendingPath = await join(roamingDir, 'botigest.restore.db');
         const dbPath = await join(roamingDir, 'botigest.db');
         const walPath = await join(roamingDir, 'botigest.db-wal');
@@ -50,8 +51,12 @@ function App() {
           console.log('Found pending restore file. Applying...');
 
           // Limpiar WAL/SHM para prevenir corrupción
-          try { await remove(walPath); } catch (e) { /* ignore */ }
-          try { await remove(shmPath); } catch (e) { /* ignore */ }
+          try {
+            await remove(walPath);
+            await remove(shmPath);
+          } catch (e) {
+            // Ignorar error si no existen o no se pueden borrar
+          }
 
           // Intercambiar archivos
           // Podemos intentar renombrar el actual a .old por si acaso
@@ -73,13 +78,17 @@ function App() {
 
       // Inicializar DB
       await initDB();
+
+      // Cargar configuración de Telegram (seguro ahora que la DB está lista)
+      await telegramService.loadConfig();
+
       setIsInitialized(true);
+
+      // Iniciar polling de Telegram
+      telegramService.startPolling();
     };
 
     init();
-
-    // Iniciar polling de Telegram
-    telegramService.startPolling();
 
     return () => {
       telegramService.stopPolling();

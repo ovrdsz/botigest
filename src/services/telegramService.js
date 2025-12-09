@@ -7,8 +7,7 @@ class TelegramNotificationService {
         this.chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
         this.listeners = [];
 
-        // Attempt to load from DB
-        this.loadConfig();
+        // REMOVED: this.loadConfig() to prevent early DB access
 
         // Listen for internal settings changes
         if (typeof window !== 'undefined') {
@@ -94,12 +93,12 @@ class TelegramNotificationService {
     }
 
     /**
-     * Notify when product stock is low (<= 5)
+     * Notify when product stock is low (<= 10)
      * @param {string} productName 
      * @param {number} currentStock 
      */
     async notifyLowStock(productName, currentStock) {
-        if (currentStock > 5) return;
+        if (currentStock > 10) return;
 
         const message = `⚠️ **Stock Crítico**: Quedan solo ${currentStock} unidades de ${productName}.`;
         await this._send(message);
@@ -174,12 +173,15 @@ class TelegramNotificationService {
         let options = {};
 
         if (requiereAprobacion) {
+            const approveText = type === 'observation' ? '✅ Resuelto' : '✅ Aceptar';
+            const rejectText = type === 'observation' ? '❌ Rechazado' : '❌ Rechazar';
+
             options = {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            { text: '✅ Aceptar', callback_data: `approve_ticket_${id}` },
-                            { text: '❌ Rechazar', callback_data: `reject_ticket_${id}` }
+                            { text: approveText, callback_data: `approve_ticket_${id}` },
+                            { text: rejectText, callback_data: `reject_ticket_${id}` }
                         ]
                     ]
                 }
@@ -241,6 +243,124 @@ class TelegramNotificationService {
     async handleUpdate(update) {
         if (update.callback_query) {
             await this.handleCallbackQuery(update.callback_query);
+        } else if (update.message) {
+            await this.handleMessage(update.message);
+        }
+    }
+
+    async handleMessage(message) {
+        const { chat, text } = message;
+        if (!text) return;
+
+        // Check for specific commands
+        if (text.startsWith('/stock')) {
+            await this.handleStockCommand(chat.id);
+        } else if (text.startsWith('/resumen')) {
+            await this.handleResumenCommand(chat.id);
+        } else if (text.startsWith('/alertas')) {
+            await this.handleAlertasCommand(chat.id);
+        } else if (text.startsWith('/ayuda') || text.startsWith('/start')) {
+            await this.handleAyudaCommand(chat.id);
+        }
+    }
+
+    async handleAyudaCommand(chatId) {
+        const message = `🤖 *Comandos Disponibles:*\n\n` +
+            `📦 **/stock**: Ver lista de productos y stock actual.\n` +
+            `📊 **/resumen**: Ver reporte de ventas del día.\n` +
+            `⚠️ **/alertas**: Ver productos con stock crítico.\n` +
+            `ℹ️ **/ayuda**: Ver este mensaje.`;
+        await this._send(message, { chat_id: chatId });
+    }
+
+    async handleAlertasCommand(chatId) {
+        try {
+            const { ProductRepository } = await import('../repositories/productRepository.js');
+            const lowStockItems = await ProductRepository.getLowStockItems(10);
+
+            if (lowStockItems.length === 0) {
+                await this._send('✅ Todo en orden. No hay productos con stock crítico.', { chat_id: chatId });
+                return;
+            }
+
+            let message = '⚠️ *ALERTAS DE STOCK(<= 10)*\n\n';
+            lowStockItems.forEach(p => {
+                message += `❗ *${p.name}*\n   Quedan: *${p.stock}*\n`;
+            });
+
+            await this._send(message, { chat_id: chatId });
+
+        } catch (error) {
+            console.error('Error handling /alertas command:', error);
+            await this._send('❌ Error al consultar alertas.', { chat_id: chatId });
+        }
+    }
+
+    async handleResumenCommand(chatId) {
+        try {
+            await this._send('📊 Generando resumen del día...', { chat_id: chatId });
+
+            // Dynamic import
+            const { SaleRepository } = await import('../repositories/saleRepository.js');
+            const stats = await SaleRepository.getDailyStats();
+
+            // stats structure: { total, count, average, trend, countTrend }
+            const totalFormatted = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(stats.total);
+            const avgFormatted = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(stats.average);
+
+            // Trend icons
+            const getTrendIcon = (val) => val > 0 ? '📈' : (val < 0 ? 'dt' : '➖'); // dt = down trend placeholder
+            const trendIcon = stats.trend > 0 ? '📈' : (stats.trend < 0 ? '📉' : '➖');
+
+            const message = `📊 *RESUMEN DE VENTAS DE HOY*\n\n` +
+                `💰 *Total Vendido*: ${totalFormatted}\n` +
+                `🧾 *Transacciones*: ${stats.count}\n` +
+                `🏷 *Ticket Promedio*: ${avgFormatted}\n\n` +
+                `*Comparación ayer:*\n` +
+                `${trendIcon} La venta es un ${Math.abs(stats.trend).toFixed(1)}% ${stats.trend >= 0 ? 'mayor' : 'menor'} que ayer.`;
+
+            await this._send(message, { chat_id: chatId });
+
+        } catch (error) {
+            console.error('Error handling /resumen command:', error);
+            await this._send('❌ Error al generar el resumen.', { chat_id: chatId });
+        }
+    }
+
+    async handleStockCommand(chatId) {
+        try {
+            await this._send('🔍 Consultando inventario...', { chat_id: chatId });
+
+            // Dynamic import to avoid cycles or load only when needed
+            const { ProductRepository } = await import('../repositories/productRepository.js');
+            const products = await ProductRepository.getAll();
+
+            if (products.length === 0) {
+                await this._send('📦 No hay productos registrados.', { chat_id: chatId });
+                return;
+            }
+
+            let response = '📦 *REPORTE DE STOCK ACTUAL*\n\n';
+
+            // Format: Name (Code) - Stock: X
+            products.forEach(p => {
+                const line = `🔹 *${p.name}*\n   Stock: *${p.stock}* | Precio: $${p.price}\n`;
+
+                // Split if message gets too long (Telegram limit ~4096)
+                if ((response.length + line.length) > 4000) {
+                    this._send(response, { chat_id: chatId });
+                    response = '';
+                }
+                response += line;
+            });
+
+            if (response) {
+                await this._send(response, { chat_id: chatId });
+            }
+
+        } catch (error) {
+            console.error('Error handling /stock command:', error);
+            await this._send('❌ Error al consultar el stock.', { chat_id: chatId });
         }
     }
 
@@ -263,17 +383,29 @@ class TelegramNotificationService {
 
             if (data.startsWith('approve_ticket_')) {
                 const tId = parseInt(data.replace('approve_ticket_', ''));
+
+                // Obtener ticket para personalizar mensaje
+                const ticket = await TicketRepository.getById(tId);
+                const isObservation = ticket && ticket.type === 'observation';
+                const actionText = isObservation ? 'Resuelto' : 'Aprobado';
+                const actionVerb = isObservation ? 'resuelto' : 'aprobado';
+
                 await TicketRepository.approve(tId, resolverId);
-                await this.answerCallbackQuery(id, '✅ Ticket Aprobado Correctamente');
-                await this._send(`✅ Ticket #${tId} aprobado por ${from.first_name} desde Telegram.`);
+
+                // Notificar a la UI inmediatamente
                 this.notifyListeners({ type: 'TICKET_UPDATED', id: tId, status: 'approved' });
+
+                await this.answerCallbackQuery(id, `✅ Ticket ${actionText}`);
+                await this._send(`✅ Ticket #${tId} ${actionVerb} por ${from.first_name} desde Telegram.`);
             }
             else if (data.startsWith('reject_ticket_')) {
                 const tId = parseInt(data.replace('reject_ticket_', ''));
                 await TicketRepository.reject(tId, resolverId);
+                // Notificar a la UI inmediatamente despues de la actualizacion en BD
+                this.notifyListeners({ type: 'TICKET_UPDATED', id: tId, status: 'rejected' });
+
                 await this.answerCallbackQuery(id, '❌ Ticket Rechazado');
                 await this._send(`❌ Ticket #${tId} rechazado por ${from.first_name} desde Telegram.`);
-                this.notifyListeners({ type: 'TICKET_UPDATED', id: tId, status: 'rejected' });
             }
         } catch (error) {
             console.error('Error handling callback:', error);

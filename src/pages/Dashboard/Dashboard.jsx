@@ -3,6 +3,7 @@ import { TrendingUp, ShoppingBag, AlertTriangle, DollarSign, ArrowUpRight, Arrow
 import Card from '../../components/ui/Card';
 import { SaleRepository } from '../../repositories/saleRepository';
 import { ProductRepository } from '../../repositories/productRepository';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -42,7 +43,9 @@ const Dashboard = () => {
     ]);
 
     const [recentSales, setRecentSales] = useState([]);
-    const [hourlySales, setHourlySales] = useState([]);
+    const [topProducts, setTopProducts] = useState([]);
+    // Remove hourlySales state if unused or keep if needed for other things, but prompt says replace chart.
+    // Clean code: remove hourlySales state.
 
     useEffect(() => {
         loadDashboardData();
@@ -50,16 +53,18 @@ const Dashboard = () => {
 
     const loadDashboardData = async () => {
         try {
-            const [dailyStats, lowStockCount, sales, salesHourly] = await Promise.all([
+            const today = new Date();
+            const lastWeek = new Date(today);
+            lastWeek.setDate(today.getDate() - 7);
+
+            const formatDate = (date) => date.toISOString().split('T')[0];
+
+            const [dailyStats, lowStockCount, sales, topSelling] = await Promise.all([
                 SaleRepository.getDailyStats(),
                 ProductRepository.getLowStock(10),
                 SaleRepository.getRecentSales(5),
-                SaleRepository.getHourlySales()
+                SaleRepository.getTopSellingProducts(formatDate(lastWeek), formatDate(today))
             ]);
-
-            // Actualizar Ventas por Hora para Gráfico (Mapeo simple por ahora)
-            // En una librería de gráficos real mapearíamos esto a la estructura de datos del gráfico
-            // setHourlySales(hourlyData); 
 
             setStats([
                 {
@@ -96,7 +101,7 @@ const Dashboard = () => {
                 }
             ]);
 
-            setHourlySales(salesHourly);
+            setTopProducts(topSelling);
 
             setRecentSales(sales.map(s => ({
                 id: s.id,
@@ -111,7 +116,7 @@ const Dashboard = () => {
         }
     };
 
-    const maxHourlySale = Math.max(...hourlySales.map(h => h.total), 1);
+
 
     return (
         <div className="dashboard-container">
@@ -149,31 +154,97 @@ const Dashboard = () => {
             </div>
 
             <div className="dashboard-content">
-                {/* Sección Principal de Gráfico */}
+                {/* Sección Tendencia */}
                 <Card className="chart-section">
                     <div className="section-header">
-                        <h2>Ventas por Hora (Hoy)</h2>
+                        <h2>Tendencia</h2>
+                        <span className="text-muted" style={{ fontSize: '0.9rem' }}>Esta semana</span>
                     </div>
-                    <div className="list-chart-container" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '10px' }}>
-                        {hourlySales.length > 0 ? (
-                            <div className="list-chart">
-                                {hourlySales.map((item, index) => (
-                                    <div key={index} className="list-chart-item">
-                                        <div className="list-chart-info">
-                                            <span className="list-chart-label">{item.hour}:00</span>
-                                            <span className="list-chart-value">${item.total.toLocaleString()}</span>
-                                        </div>
-                                        <div className="progress-bg">
-                                            <div
-                                                className="progress-fill"
-                                                style={{ width: `${(item.total / maxHourlySale) * 100}%` }}
-                                            ></div>
+
+                    <div className="trend-grid" style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '1rem',
+                        padding: '0.5rem 0'
+                    }}>
+                        {topProducts.length > 0 ? (
+                            topProducts.map((product, index) => (
+                                <div key={index} className="trend-card" style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    textAlign: 'center',
+                                    padding: '1rem',
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--border-color)'
+                                }}>
+                                    <div className="product-image-container" style={{
+                                        width: '60px',
+                                        height: '60px',
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        marginBottom: '0.75rem',
+                                        background: 'var(--bg-primary)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        {product.image_url ? (
+                                            <img
+                                                src={convertFileSrc(product.image_url)}
+                                                alt={product.name}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextSibling.style.display = 'block';
+                                                }}
+                                            />
+                                        ) : null}
+                                        <div style={{
+                                            display: product.image_url ? 'none' : 'flex',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            height: '100%'
+                                        }}>
+                                            <ShoppingBag size={24} className="text-muted" />
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    <h4 style={{
+                                        margin: '0 0 0.25rem 0',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        color: 'var(--text-primary)',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: '2',
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        minHeight: '2.5em'
+                                    }}>
+                                        {product.name}
+                                    </h4>
+
+                                    <div className="trend-stats" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{
+                                            background: 'rgba(59, 130, 246, 0.1)',
+                                            color: 'var(--primary-color)',
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '12px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '500'
+                                        }}>
+                                            {product.count} vendidos
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
                         ) : (
-                            <p className="text-muted text-center py-8">No hay ventas registradas hoy.</p>
+                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>
+                                <p className="text-muted">No hay datos de tendencias aún.</p>
+                            </div>
                         )}
                     </div>
                 </Card>
