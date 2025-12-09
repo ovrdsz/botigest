@@ -40,7 +40,9 @@ const MainLayout = () => {
             <WindowControls />
             <aside className="sidebar glass-panel">
                 <div className="sidebar-header">
-                    <div className="sidebar-logo">{appName.charAt(0)}</div>
+                    <div className="sidebar-logo">
+                        <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    </div>
                     <h2>{appName}</h2>
                 </div>
 

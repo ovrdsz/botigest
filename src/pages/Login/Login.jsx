@@ -8,6 +8,19 @@ import Button from '../../components/ui/Button';
 import WindowControls from '../../components/ui/WindowControls';
 import './Login.css';
 
+// Add basic styles for the new logo image
+const styles = `
+.logo-image {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+}
+`;
+const styleSheet = document.createElement("style");
+styleSheet.innerText = styles;
+document.head.appendChild(styleSheet);
+
 const Login = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
@@ -42,7 +55,7 @@ const Login = () => {
             <Card className="login-card">
                 <div className="login-header">
                     <div className="logo-placeholder">
-                        <div className="logo-icon">B</div>
+                        <img src="/logo.png" alt="Botigest Logo" className="logo-image" />
                     </div>
                     <h1>Bienvenido</h1>
                     <p className="text-muted">Ingresa a tu cuenta para continuar</p>
